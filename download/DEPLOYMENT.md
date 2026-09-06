@@ -1,0 +1,303 @@
+# EasySourcing — Production Deployment Guide
+
+**Platform:** Asset Physical Verification, Audit & Reconciliation Suite
+**Stack:** Next.js 16 (App Router, standalone output) · TypeScript 5 · Tailwind CSS 4 + shadcn/ui · Prisma ORM · Bun
+**Test status at time of writing:** 68 white-box + 19 black-box tests passing (87/87), ESLint clean
+
+---
+
+## 1. Architecture — what you are deploying
+
+EasySourcing ships as **five deployable units** that share one REST contract.
+Every unit can be built, versioned and deployed independently; today they run
+inside a single Next.js server, and §7 shows how to split them out.
+
+| Unit | Kind | Version | Deploy target | Consumes |
+|---|---|---|---|---|
+| **Hub** (`hub.easysourcing.in`) | Web shell | 2.1.0 | static SSR / edge | `GET /bootstrap`, `GET /registry` |
+| **Operations Portal** (`ops.easysourcing.in`) | Web app | 2.1.0 | Node server / container | `GET /bootstrap`, `PATCH /exceptions`, `POST /reports` |
+| **Client Portal** (`clients.easysourcing.in`) | Web app | 2.0.3 | Node server / container | `GET /bootstrap`, `POST /approvals`, `POST /reports` |
+| **Auditor Mobile** (`field.easysourcing.in`) | PWA | 2.1.1 | Node server / container + PWA wrapper | `GET /bootstrap`, `POST /verify` |
+| **Core API** (`api.easysourcing.in`) | Service | 2.1.4 | Node server / container | Prisma → SQLite/Postgres |
+
+Integration rules (enforced in code review & by the module manifest):
+
+- Modules **never import each other** — they only share `@es/shared`
+  (`src/modules/shared`, `src/lib/core-logic.ts`), a versioned pure-TS kernel.
+- All module↔service traffic rides **`/api/core/*`** (the single contract):
+  `GET /api/core/bootstrap`, `GET /api/core/registry`, `POST /api/core/verify`,
+  `PATCH /api/core/exceptions`, `POST /api/core/approvals`, `POST /api/core/reports`.
+- Each module self-describes via a `manifest.ts` (`id`, semver, screens, API
+  contract, deploy target). `GET /api/core/registry` serves the live manifests —
+  what the Architecture map shows is exactly what is deployed.
+
+---
+
+## 2. Prerequisites
+
+| Tool | Version | Why |
+|---|---|---|
+| Bun | ≥ 1.1 | runtime, package manager, test runner |
+| Node.js | ≥ 20 (installed by the `oven/bun` image) | Next standalone server runs on Node |
+| Docker | ≥ 24 | container path (optional but recommended) |
+| SQLite | bundled | default datastore — zero-setup |
+| PostgreSQL | ≥ 14 | optional production datastore (§4.3) |
+
+---
+
+## 3. Environment variables
+
+| Variable | Required | Example | Notes |
+|---|---|---|---|
+| `DATABASE_URL` | **yes** | `file:/data/custom.db` | Prisma URL. SQLite path must live on a **persistent volume**. For Postgres: `postgresql://user:pass@host:5432/easysourcing` |
+| `NODE_ENV` | yes (prod) | `production` | disables Prisma global-caching dev behaviour |
+| `PORT` | no | `3000` | standalone server port |
+| `HOSTNAME` | no | `0.0.0.0` | bind address (set in the Dockerfile) |
+| `PRISMA_LOG_SILENT` | no | `1` | set in prod to silence per-query logging |
+| `DATABASE_URL` at build time | no | `file:/tmp/build.db` | Prisma generate needs *a* value; the Dockerfile sets one |
+
+Create `.env.production` (never commit it):
+
+```bash
+NODE_ENV=production
+DATABASE_URL=file:/data/custom.db
+PRISMA_LOG_SILENT=1
+```
+
+---
+
+## 4. Database
+
+### 4.1 Schema push (SQLite, first boot)
+
+The standalone Docker entrypoint runs `prisma db push --skip-generate`
+automatically against `DATABASE_URL`. For manual setup:
+
+```bash
+bun install --frozen-lockfile
+bunx prisma generate
+bunx prisma db push          # creates tables from prisma/schema.prisma
+```
+
+### 4.2 Demo data (optional)
+
+```bash
+bun prisma/seed.ts           # realistic 5-client, 165-asset demo world
+```
+
+> ⚠️ Never seed a real production environment — the seed overwrites demo
+> entities with deterministic codes (`aud_1`, `ES-MRD-*`, …).
+
+### 4.3 Switching to PostgreSQL (recommended for real production)
+
+SQLite is perfect for demos and single-node pilots, but for multi-instance
+production switch the datasource:
+
+1. Edit `prisma/schema.prisma`:
+   ```prisma
+   datasource db {
+     provider = "postgresql"
+     url      = env("DATABASE_URL")
+   }
+   ```
+2. Regenerate + migrate:
+   ```bash
+   bunx prisma migrate dev --name init_pg
+   ```
+3. Point `DATABASE_URL` at your Postgres instance. No application code changes
+   are needed — all queries are portable Prisma.
+
+### 4.4 Backups
+
+- **SQLite:** stop-the-world copy or `sqlite3 .backup` of the volume path
+  (`/data/custom.db`), e.g. nightly cron + S3 upload.
+- **Postgres:** `pg_dump` nightly, PITR via your provider.
+
+The whole audit trail lives in this database — treat it as financial records.
+
+---
+
+## 5. Build & run
+
+### 5.1 Bare metal / VM
+
+```bash
+bun install --frozen-lockfile
+bun run lint                       # gate: must be clean
+bunx prisma generate && bunx prisma db push
+bun run build                      # standalone output → .next/standalone
+DATABASE_URL=file:/data/custom.db NODE_ENV=production \
+  node .next/standalone/server.js  # listens on :3000
+```
+
+`package.json` also provides `bun run start` (wraps the same server with logs).
+
+### 5.2 Docker (recommended)
+
+```bash
+docker build -t easysourcing:latest .
+docker run -d --name easysourcing \
+  -p 3000:3000 \
+  --env-file .env.production \
+  -v easysourcing-data:/data \
+  --restart unless-stopped \
+  easysourcing:latest
+```
+
+### 5.3 Docker Compose (app + optional Caddy gateway)
+
+```bash
+docker compose --env-file .env.production up -d                 # app only
+docker compose --profile gateway --env-file .env.production up -d  # + Caddy :80/:443
+```
+
+Health: `curl http://localhost:3000/api/core/registry` →
+`{"service":{"status":"healthy", ...}}`. The compose healthcheck polls this
+every 30 s.
+
+---
+
+## 6. Reverse proxy / TLS
+
+Any L7 proxy works. Terminate TLS and forward to `:3000`:
+
+- **Caddy** — a `Caddyfile` ships with the repo (sandbox pattern). For a single
+  domain:
+  ```
+  easysourcing.example.com {
+    reverse_proxy localhost:3000
+  }
+  ```
+- **Nginx** — standard `proxy_pass http://127.0.0.1:3000;` with
+  `X-Forwarded-For/Proto` headers.
+- **Cloud** — put the service behind ALB/Cloud Run/App Router's native output;
+  no code changes required.
+
+---
+
+## 7. Splitting the modules into standalone services
+
+The codebase is already partitioned for separation; splitting is an ops
+exercise, not a rewrite:
+
+1. **Core API first.** Move `src/app/api/core/**` + `src/lib/{db,core-logic}.ts`
+   into its own service (or keep them in the same repo and deploy a second
+   instance that only serves `/api/core`). Point it at shared Postgres.
+2. **Point the front-ends at it.** Each portal's data layer uses a single
+   constant — `API_BASE` in `src/modules/shared/store.tsx`. Change it from
+   `/api/core` to `https://api.easysourcing.in/core` (or inject at build time)
+   and each portal becomes deployable on its own hostname.
+3. **Per-module images.** Every module declares its own `manifest.ts` with
+   version + deploy target + container image (`registry.es/<module>:<semver>`).
+   CI builds one image per module, tagging the manifest version.
+4. **In-sandbox / single-port pattern.** While iterating locally, side-car
+   services stay reachable through the Caddy gateway using
+   `?XTransformPort=<port>` on relative URLs (see `Caddyfile`) — e.g.
+   `io('/?XTransformPort=3030')` for a websocket mini-service.
+5. **Version contract, don't break it.** Bump `@es/shared` semver when the
+   shared types change; `GET /api/core/registry` publishes every deployed
+   version so drift is observable at runtime.
+
+---
+
+## 8. CI/CD pipeline (suggested)
+
+```yaml
+# .github/workflows/ci.yml (sketch)
+name: ci
+on: [push]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run lint
+      - name: white-box (isolated DB copy)
+        run: |
+          cp db/custom.db db/test.db || true
+          DATABASE_URL=file:$PWD/db/test.db PRISMA_LOG_SILENT=1 bun test tests/whitebox/
+      - name: build & boot
+        run: |
+          bunx prisma generate && bunx prisma db push
+          bun run build &
+          sleep 8
+      - name: black-box (live HTTP)
+        run: PRISMA_LOG_SILENT=1 bun test tests/blackbox/
+```
+
+Promotion gate: lint clean + 87/87 tests green + registry endpoint healthy on
+the booted container → build image → tag with module manifest semver → deploy.
+
+---
+
+## 9. Monitoring & operations
+
+- **Liveness/readiness:** `GET /api/core/registry` — returns
+  `service.status: healthy | degraded` (degraded = DB unreachable),
+  `uptimeSeconds`, `latencyMs`, live row counts and all module manifests.
+  Wire it to your LB health check and uptime monitor.
+- **Logs:** the app logs to stdout (Next standalone + Prisma). Ship with your
+  standard collector; set `PRISMA_LOG_SILENT=1` in prod to avoid query spam.
+- **Audit trail:** every state change (verifications, lifecycle moves,
+  approvals, reports) appends an `AuditLog` row — query it for compliance
+  forensics; it is append-only by design.
+- **Backups:** §4.4 — nightly, tested restores.
+- **Key metrics to alert on:** registry status != healthy, bootstrap p95
+  latency (> 1.5 s budget), 5xx rate on `/api/core/*`, DB disk usage
+  (SQLite volume) / connection saturation (Postgres).
+
+---
+
+## 10. Security hardening checklist (implemented + to-dos)
+
+**Implemented during production-hardening pass:**
+
+- ✅ Server-side input validation on every write endpoint (`src/lib/core-logic.ts`)
+  — unknown results/decisions/actions are rejected `400`, never persisted.
+- ✅ Exception lifecycle is a real state machine — illegal transitions `409`.
+- ✅ Idempotent sync engine — replays (`skipped`) and parallel retry races
+  (`P2002` → duplicate) can never double-apply an operation.
+- ✅ Per-operation batch isolation — one bad op can't 500 the whole batch;
+  partial results are reported per-item.
+- ✅ Error responses are always JSON — no stack traces or HTML error pages leak.
+- ✅ Fuzz-tested: SQL-ish strings, oversized payloads (20 KB), unicode, null
+  bodies, wrong types — all degrade to clean 4xx.
+
+**Recommended before internet-facing production:**
+
+- [ ] Put authentication in front of the app (NextAuth.js v4 is already a
+      dependency) — the demo currently runs open by design.
+- [ ] Role-gate the API: Ops users → `PATCH /exceptions`, clients →
+      `POST /approvals` scoped to their `clientId`, auditors → `POST /verify`.
+- [ ] Rate-limit `POST /api/core/verify` at the edge (it is the field-sync
+      hot path).
+- [ ] Enforce HTTPS/HSTS at the proxy; add CSP headers for the portals.
+- [ ] Rotate demo credentials out of `prisma/seed.ts`.
+
+---
+
+## 11. Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `registry` returns `degraded` | DB unreachable / wrong `DATABASE_URL` | check volume mount, path, credentials |
+| `P1003` / `Error: Cannot find module '@prisma/client'` | client not generated in image | ensure `bunx prisma generate` ran (Dockerfile does) |
+| Empty portals after deploy | DB pushed but not seeded | run `bun prisma/seed.ts` (demo only) |
+| Sync returns `applied: 0, rejected: N` | mobile ops failed reference validation | inspect `items[].error` — usually stale audit/asset ids on device |
+| `409 Illegal transition` from UI automation | lifecycle action replayed on moved exception | expected — the state machine rejected a stale click |
+| Port already bound | previous standalone server running | `pkill -f 'server.js'` or change `PORT` |
+| Docker: DB resets on restart | SQLite file not on a volume | mount `-v easysourcing-data:/data` and use `file:/data/custom.db` |
+
+---
+
+## 12. Rollback
+
+1. Images are tagged with the module manifest semver — redeploy the previous
+   tag (`docker run easysourcing:2.1.3`).
+2. The REST contract is additive-only by policy; an older front-end keeps
+   working against a newer Core API.
+3. For data-level rollback, restore the nightly backup (§4.4) — verification
+   events are idempotent (`operationId`), so re-syncing a device after restore
+   replays cleanly without duplicates.

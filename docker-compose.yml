@@ -1,0 +1,49 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# EasySourcing — single-node production compose
+#   docker compose -f docker-compose.yml --env-file .env.production up -d
+#
+# The gateway mirrors the sandbox Caddy pattern: everything rides :80 and
+# side-car services are addressed with ?XTransformPort=<port> until you split
+# them onto real hostnames (see DEPLOYMENT.md → "Splitting the modules").
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  app:
+    build: .
+    image: easysourcing:latest
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL:-file:/data/custom.db}
+      PRISMA_LOG_SILENT: "1"          # quiet query logs in prod
+    ports:
+      - "3000:3000"
+    volumes:
+      - appdata:/data                  # SQLite lives here — back this up
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/core/registry"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  # Optional edge gateway (TLS termination, header normalization).
+  # Enable with: docker compose --profile gateway up -d
+  gateway:
+    image: caddy:2-alpine
+    profiles: ["gateway"]
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+    depends_on:
+      - app
+
+volumes:
+  appdata:
+  caddydata:

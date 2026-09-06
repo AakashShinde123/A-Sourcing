@@ -1,37 +1,50 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { EXCEPTION_LIFECYCLE, LEGAL_EXCEPTION_TRANSITIONS, isLegalTransition } from '@/lib/core-logic'
 
 export const dynamic = 'force-dynamic'
 
-const FLOW: Record<string, string> = {
-  assign: 'assigned',
-  investigate: 'investigating',
-  resolve: 'resolved',
-  review: 'reviewer_review',
-  approve: 'approved',
-  close: 'closed',
-}
-
 /**
- * PATCH /api/exceptions — drive the exception lifecycle:
+ * PATCH /api/core/exceptions — drive the exception lifecycle:
  * Open → Assigned → Investigating → Resolved → Reviewer Review → Approved → Closed.
- * The original detection event is never overwritten; only lifecycle fields move.
+ *
+ * The state machine is enforced server-side: an action is legal only from its
+ * documented source state (no stage skipping, no reopening a closed exception).
+ * Illegal moves are rejected with 409; the detection record is never overwritten.
  */
 export async function PATCH(req: NextRequest) {
-  const { id, action, note, assignedTo } = (await req.json()) as { id: string; action: keyof typeof FLOW; note?: string; assignedTo?: string }
+  let body: { id?: unknown; action?: unknown; note?: unknown; assignedTo?: unknown }
+  try {
+    body = (await req.json()) as typeof body
+  } catch {
+    return NextResponse.json({ error: 'Request body must be valid JSON' }, { status: 400 })
+  }
+
+  const { id, action, note, assignedTo } = body
+  if (typeof id !== 'string' || !id) return NextResponse.json({ error: 'id is required' }, { status: 400 })
+  if (note !== undefined && note !== null && typeof note !== 'string') return NextResponse.json({ error: 'note must be a string' }, { status: 400 })
+
   const ex = await db.exception.findUnique({ where: { id } })
   if (!ex) return NextResponse.json({ error: 'Exception not found' }, { status: 404 })
 
-  const status = FLOW[action]
-  if (!status) return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
+  if (typeof action !== 'string' || !(action in EXCEPTION_LIFECYCLE)) {
+    return NextResponse.json({ error: `Invalid action. Allowed: ${Object.keys(EXCEPTION_LIFECYCLE).join(', ')}` }, { status: 400 })
+  }
+  if (!isLegalTransition(action, ex.status)) {
+    return NextResponse.json(
+      { error: `Illegal transition: cannot '${action}' from status '${ex.status}' (requires '${EXCEPTION_LIFECYCLE[action].from}')` },
+      { status: 409 },
+    )
+  }
+  const status = EXCEPTION_LIFECYCLE[action].to
 
   await db.exception.update({
     where: { id },
     data: {
       status,
-      ...(assignedTo ? { assignedTo } : {}),
-      ...(action === 'investigate' && !ex.assignedTo ? { assignedTo: assignedTo ?? 'Ops Team' } : {}),
-      ...(action === 'resolve' ? { resolutionNote: note ?? 'Resolved with corrected details.', resolvedAt: new Date() } : {}),
+      ...(assignedTo && typeof assignedTo === 'string' ? { assignedTo } : {}),
+      ...(action === 'investigate' && !ex.assignedTo ? { assignedTo: (typeof assignedTo === 'string' && assignedTo) || 'Ops Team' } : {}),
+      ...(action === 'resolve' ? { resolutionNote: typeof note === 'string' && note ? note : 'Resolved with corrected details.', resolvedAt: new Date() } : {}),
     },
   })
 
@@ -42,7 +55,7 @@ export async function PATCH(req: NextRequest) {
       action: `EXCEPTION_${action.toUpperCase()}`,
       entity: 'Exception',
       entityRef: ex.code,
-      detail: note ?? `Status moved to ${status.replace(/_/g, ' ')}`,
+      detail: typeof note === 'string' && note ? note : `Status moved to ${status.replace(/_/g, ' ')}`,
     },
   })
 
