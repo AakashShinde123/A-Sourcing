@@ -9,11 +9,38 @@ import type { World, QueueOp } from '@/modules/shared/types'
 export const API_BASE = '/api/core'
 
 export type Surface = 'landing' | 'architecture' | 'planner' | 'ops' | 'client' | 'mobile'
-export type OpsView = 'overview' | 'clients' | 'locations' | 'audits' | 'assets' | 'exceptions' | 'evidence' | 'reports' | 'analytics' | 'team' | 'logs'
+export type OpsView = 'overview' | 'clients' | 'locations' | 'audits' | 'assets' | 'exceptions' | 'evidence' | 'reports' | 'analytics' | 'team' | 'access' | 'logs'
 export type ClientView = 'dashboard' | 'audits' | 'assets' | 'exceptions' | 'evidence' | 'reports' | 'approvals'
+
+export interface AuthUser {
+  id: string
+  name: string
+  email: string
+  role: 'ADMIN' | 'OPS' | 'CLIENT' | 'AUDITOR'
+  clientId?: string | null
+  clientName?: string | null
+  auditorId?: string | null
+}
+
+/** Surfaces a role may open — the platform is team-only and role-scoped. */
+export function surfacesForRole(role: AuthUser['role']): Surface[] {
+  if (role === 'CLIENT') return ['client']
+  if (role === 'AUDITOR') return ['mobile']
+  return ['landing', 'architecture', 'planner', 'ops', 'client', 'mobile']
+}
+
+export function homeSurfaceForRole(role: AuthUser['role']): Surface {
+  if (role === 'CLIENT') return 'client'
+  if (role === 'AUDITOR') return 'mobile'
+  return 'landing'
+}
 
 interface Asset360Target { assetId: string }
 interface Store {
+  user: AuthUser | null
+  authLoading: boolean
+  login: (email: string, password: string, remember: boolean) => Promise<{ ok: boolean; error?: string }>
+  logout: () => Promise<void>
   world: World | null
   loading: boolean
   surface: Surface
@@ -36,6 +63,22 @@ interface Store {
   generateReport: (auditId: string) => Promise<void>
   finalizeReport: (auditId: string) => Promise<void>
   importAssets: (clientId: string, rows: Record<string, unknown>[]) => Promise<{ imported: number; skipped: number; rejected: number } | null>
+  addAuditor: (data: { name: string; email: string; phone?: string; city?: string }) => Promise<boolean>
+  setAuditorStatus: (id: string, status: string) => Promise<boolean>
+  removeAuditor: (id: string) => Promise<boolean>
+  addClient: (data: { name: string; industry: string; city: string; contact: string; email: string; phone?: string }) => Promise<boolean>
+  setClientStatus: (id: string, status: string) => Promise<boolean>
+  removeClient: (id: string) => Promise<boolean>
+}
+
+/** Pull the server's human-readable error out of a non-2xx JSON response. */
+async function apiError(res: Response, fallback: string): Promise<string> {
+  try {
+    const body = await res.json() as { error?: string }
+    return body?.error ?? fallback
+  } catch {
+    return fallback
+  }
 }
 
 const Ctx = createContext<Store | null>(null)
@@ -47,6 +90,8 @@ export function useES() {
 }
 
 export function ESProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<AuthUser | null>(null)
+  const [authLoading, setAuthLoading] = useState(true)
   const [world, setWorld] = useState<World | null>(null)
   const [loading, setLoading] = useState(true)
   const [surface, setSurface] = useState<Surface>('landing')
@@ -62,6 +107,7 @@ export function ESProvider({ children }: { children: React.ReactNode }) {
     inflight.current = true
     try {
       const res = await fetch(`${API_BASE}/bootstrap`, { cache: 'no-store' })
+      if (res.status === 401) { setUser(null); setWorld(null); return }
       if (!res.ok) throw new Error(`bootstrap ${res.status}`)
       setWorld(await res.json())
     } catch (e) {
@@ -73,7 +119,57 @@ export function ESProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  useEffect(() => { refresh() }, [refresh])
+  // Session probe first — data loading only starts once we know who is asking.
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch('/api/auth/me', { cache: 'no-store' })
+        if (!res.ok) throw new Error('not signed in')
+        const data = await res.json() as { user: AuthUser }
+        if (cancelled) return
+        setUser(data.user)
+        if (data.user.role === 'CLIENT' && data.user.clientId) setClientIdentityId(data.user.clientId)
+        setSurface(homeSurfaceForRole(data.user.role))
+        await refresh()
+      } catch {
+        if (!cancelled) setUser(null)
+      } finally {
+        if (!cancelled) setAuthLoading(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [refresh])
+
+  const login = useCallback(async (email: string, password: string, remember: boolean) => {
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, remember }),
+      })
+      const data = await res.json().catch(() => ({})) as { user?: AuthUser; error?: string }
+      if (!res.ok || !data.user) return { ok: false, error: data.error ?? `Sign-in failed (${res.status})` }
+      setUser(data.user)
+      if (data.user.role === 'CLIENT' && data.user.clientId) setClientIdentityId(data.user.clientId)
+      setOpsView('overview')
+      setSurface(homeSurfaceForRole(data.user.role))
+      await refresh()
+      return { ok: true }
+    } catch {
+      return { ok: false, error: 'Network error — is the Core API reachable?' }
+    }
+  }, [refresh])
+
+  const logout = useCallback(async () => {
+    await fetch('/api/auth/logout', { method: 'POST' }).catch(() => undefined)
+    setUser(null)
+    setWorld(null)
+    setSurface('landing')
+    setOpsView('overview')
+    setClientView('dashboard')
+    setClientIdentityId('cl_mrd')
+    toast.success('Signed out')
+  }, [])
 
   const submitVerifications = useCallback(async (ops: QueueOp[]) => {
     if (!ops.length) return { applied: 0, skipped: 0 }
@@ -134,12 +230,56 @@ export function ESProvider({ children }: { children: React.ReactNode }) {
 
   const openAudit = useCallback((id: string) => { setSelectedAuditId(id) }, [])
 
+  const addAuditor = useCallback(async (data: { name: string; email: string; phone?: string; city?: string }) => {
+    const res = await fetch(`${API_BASE}/auditors`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+    if (!res.ok) { toast.error('Could not add team member', { description: await apiError(res, `Core API responded ${res.status}`) }); return false }
+    await refresh()
+    return true
+  }, [refresh])
+
+  const setAuditorStatus = useCallback(async (id: string, status: string) => {
+    const res = await fetch(`${API_BASE}/auditors`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, status }) })
+    if (!res.ok) { toast.error('Status update failed', { description: await apiError(res, `Core API responded ${res.status}`) }); return false }
+    await refresh()
+    return true
+  }, [refresh])
+
+  const removeAuditor = useCallback(async (id: string) => {
+    const res = await fetch(`${API_BASE}/auditors?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
+    if (!res.ok) { toast.error('Remove not allowed', { description: await apiError(res, `Core API responded ${res.status}`) }); return false }
+    await refresh()
+    return true
+  }, [refresh])
+
+  const addClient = useCallback(async (data: { name: string; industry: string; city: string; contact: string; email: string; phone?: string }) => {
+    const res = await fetch(`${API_BASE}/clients`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+    if (!res.ok) { toast.error('Could not add client', { description: await apiError(res, `Core API responded ${res.status}`) }); return false }
+    await refresh()
+    return true
+  }, [refresh])
+
+  const setClientStatus = useCallback(async (id: string, status: string) => {
+    const res = await fetch(`${API_BASE}/clients`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, status }) })
+    if (!res.ok) { toast.error('Status update failed', { description: await apiError(res, `Core API responded ${res.status}`) }); return false }
+    await refresh()
+    return true
+  }, [refresh])
+
+  const removeClient = useCallback(async (id: string) => {
+    const res = await fetch(`${API_BASE}/clients?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
+    if (!res.ok) { toast.error('Remove not allowed', { description: await apiError(res, `Core API responded ${res.status}`) }); return false }
+    await refresh()
+    return true
+  }, [refresh])
+
   const value = useMemo<Store>(() => ({
+    user, authLoading, login, logout,
     world, loading, surface, setSurface, opsView, setOpsView, clientView, setClientView,
     clientIdentityId, setClientIdentityId,
     asset360, openAsset360: (assetId) => setAsset360({ assetId }), closeAsset360: () => setAsset360(null),
     selectedAuditId, openAudit, refresh, submitVerifications, patchException, submitApproval, generateReport, finalizeReport, importAssets,
-  }), [world, loading, surface, opsView, clientView, clientIdentityId, asset360, selectedAuditId, refresh, submitVerifications, patchException, submitApproval, generateReport, finalizeReport, importAssets])
+    addAuditor, setAuditorStatus, removeAuditor, addClient, setClientStatus, removeClient,
+  }), [user, authLoading, login, logout, world, loading, surface, opsView, clientView, clientIdentityId, asset360, selectedAuditId, refresh, submitVerifications, patchException, submitApproval, generateReport, finalizeReport, importAssets, addAuditor, setAuditorStatus, removeAuditor, addClient, setClientStatus, removeClient])
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

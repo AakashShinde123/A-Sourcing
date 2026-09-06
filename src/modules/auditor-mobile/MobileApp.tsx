@@ -17,7 +17,7 @@ import {
 const QUEUE_KEY = 'es-offline-queue'
 
 export function MobileApp() {
-  const { world, setSurface, submitVerifications } = useES()
+  const { world, setSurface, submitVerifications, user } = useES()
   const [tab, setTab] = useState<'home' | 'assignments' | 'scan' | 'exceptions' | 'profile'>('home')
   const [online, setOnline] = useState(true)
   const [queue, setQueue] = useState<QueueOp[]>([])
@@ -53,7 +53,8 @@ export function MobileApp() {
     }
   }
 
-  const me = world?.auditors.find((a) => a.id === 'adr_1')
+  // Field identity: the signed-in AUDITOR's linked record; ADMIN/OPS preview as the demo auditor.
+  const me = world?.auditors.find((a) => a.id === (user?.role === 'AUDITOR' && user.auditorId ? user.auditorId : 'adr_1')) ?? world?.auditors[0]
   const assignment = useMemo(() => world?.assignments.find((a) => a.id === 'asg_1'), [world])
   const myAssets = useMemo(() => (world ? world.assets.filter((a) => a.assignmentId === 'asg_1') : []), [world])
   const myVerifs = useMemo(() => (world?.verifications ?? []).filter((v) => v.assignmentId === 'asg_1'), [world])

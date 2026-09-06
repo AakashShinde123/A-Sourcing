@@ -1,12 +1,18 @@
 'use client'
 
-import React, { useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell, RadialBarChart, RadialBar, PolarAngleAxis } from 'recharts'
 // Note: overview trend uses recharts BarChart; here we favor lightweight custom bars for reliability
 import { Avatar, MicroLabel, Bar as ProgressBar } from '@/modules/shared/ui-bits'
 import { useES } from '@/modules/shared/store'
 import { fmtDateTime, fmtDateShort } from '@/modules/shared/format'
-import { Radio, LogOut, Database, ShieldCheck } from 'lucide-react'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { toast } from 'sonner'
+import { Radio, LogOut, Database, ShieldCheck, UserPlus, MoreHorizontal, Power, UserMinus, Loader2, History } from 'lucide-react'
 
 // ─── Analytics ───────────────────────────────────────────────────
 export function AnalyticsView() {
@@ -127,18 +133,91 @@ export function AnalyticsView() {
 }
 
 // ─── Team ────────────────────────────────────────────────────────
+function AddMemberDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const { addAuditor } = useES()
+  const [form, setForm] = useState({ name: '', email: '', phone: '', city: '' })
+  const [busy, setBusy] = useState(false)
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [k]: e.target.value }))
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    setBusy(true)
+    const ok = await addAuditor({ name: form.name.trim(), email: form.email.trim(), phone: form.phone.trim() || undefined, city: form.city.trim() || undefined })
+    setBusy(false)
+    if (ok) { toast.success(`${form.name.trim()} added to the field team`); setForm({ name: '', email: '', phone: '', city: '' }); onOpenChange(false) }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-md rounded-2xl">
+        <DialogHeader>
+          <DialogTitle className="font-display">Add team member</DialogTitle>
+          <DialogDescription>New auditors start as Available and receive an ES-EMP code automatically.</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={submit} className="space-y-3.5">
+          <div className="space-y-1.5">
+            <Label htmlFor="tm-name" className="text-[12px] font-semibold text-zinc-700">Full name *</Label>
+            <Input id="tm-name" required maxLength={80} value={form.name} onChange={set('name')} placeholder="e.g. Ravi Sharma" className="h-10 rounded-lg" />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="tm-email" className="text-[12px] font-semibold text-zinc-700">Work email *</Label>
+            <Input id="tm-email" required type="email" value={form.email} onChange={set('email')} placeholder="ravi.s@easysourcing.in" className="h-10 rounded-lg" />
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="tm-phone" className="text-[12px] font-semibold text-zinc-700">Phone</Label>
+              <Input id="tm-phone" maxLength={24} value={form.phone} onChange={set('phone')} placeholder="+91 90040 11223" className="h-10 rounded-lg" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="tm-city" className="text-[12px] font-semibold text-zinc-700">Base city</Label>
+              <Input id="tm-city" maxLength={40} value={form.city} onChange={set('city')} placeholder="Pune" className="h-10 rounded-lg" />
+            </div>
+          </div>
+          <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="h-10 rounded-lg">Cancel</Button>
+            <Button type="submit" disabled={busy} className="h-10 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-[0_4px_14px_-4px_rgba(16,185,129,0.6)] hover:brightness-105">
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}{busy ? 'Adding…' : 'Add member'}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export function TeamView() {
-  const { world } = useES()
+  const { world, setAuditorStatus, removeAuditor } = useES()
+  const [addOpen, setAddOpen] = useState(false)
+  const [menuFor, setMenuFor] = useState<string | null>(null)
+  const [confirmFor, setConfirmFor] = useState<{ id: string; name: string } | null>(null)
+  const [removing, setRemoving] = useState(false)
+
+  async function confirmRemove() {
+    if (!confirmFor) return
+    setRemoving(true)
+    const ok = await removeAuditor(confirmFor.id)
+    setRemoving(false)
+    if (ok) toast.success(`${confirmFor.name} removed from the team`)
+    setConfirmFor(null)
+  }
+
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-lg font-semibold tracking-tight text-zinc-900">Field Team</h1>
-        <p className="text-[13px] text-zinc-500">EasySourcing auditors, reviewers and their device sync telemetry</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-lg font-semibold tracking-tight text-zinc-900">Field Team</h1>
+          <p className="text-[13px] text-zinc-500">EasySourcing auditors, reviewers and their device sync telemetry</p>
+        </div>
+        <button onClick={() => setAddOpen(true)} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 px-3.5 text-[13px] font-bold text-white shadow-[0_4px_14px_-4px_rgba(16,185,129,0.6)] transition hover:brightness-105 active:scale-[0.98]">
+          <UserPlus className="h-4 w-4" />Add team member
+        </button>
       </div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {world!.auditors.map((a) => {
           const vs = world!.verifications.filter((v) => v.auditorId === a.id)
           const asgs = world!.assignments.filter((x) => x.auditorId === a.id)
+          const hasHistory = vs.length > 0 || asgs.length > 0
+          const menuOpen = menuFor === a.id
           return (
             <div key={a.id} className="card p-4">
               <div className="flex items-center gap-3">
@@ -146,11 +225,34 @@ export function TeamView() {
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-[15px] font-semibold text-zinc-900">{a.name}</div>
                   <div className="truncate text-xs text-zinc-500">{a.email}</div>
-                  <div className="mt-0.5 font-mono text-[10px] text-zinc-400">{a.employeeCode} · {a.city}</div>
+                  <div className="mt-0.5 font-mono text-[10px] text-zinc-400">{a.employeeCode} · {a.city ?? '—'}</div>
                 </div>
                 <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ring-inset ${a.status === 'in_field' ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' : a.status === 'available' ? 'bg-amber-50 text-amber-700 ring-amber-200' : 'bg-zinc-100 text-zinc-500 ring-zinc-200'}`}>
                   <Radio className="h-2.5 w-2.5" />{a.status === 'in_field' ? 'In field' : a.status === 'available' ? 'Available' : 'Offline'}
                 </span>
+                <div className="relative shrink-0">
+                  <button onClick={() => setMenuFor(menuOpen ? null : a.id)} aria-label={`Manage ${a.name}`}
+                    className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-400 ring-1 ring-transparent transition hover:bg-zinc-100 hover:text-zinc-600 hover:ring-zinc-200">
+                    <MoreHorizontal className="h-4.5 w-4.5" />
+                  </button>
+                  {menuOpen && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setMenuFor(null)} aria-hidden />
+                      <div className="absolute right-0 top-10 z-50 w-60 rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl">
+                        <button onClick={() => { setMenuFor(null); setAuditorStatus(a.id, a.status === 'offline' ? 'available' : 'offline') }}
+                          className="flex min-h-10 w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] text-zinc-700 transition hover:bg-zinc-50">
+                          <Power className="h-3.5 w-3.5 text-zinc-400" />{a.status === 'offline' ? 'Reactivate (Available)' : 'Deactivate (Offline)'}
+                        </button>
+                        <button disabled={hasHistory} title={hasHistory ? 'Member has audit history — deactivate instead' : undefined}
+                          onClick={() => { if (!hasHistory) { setMenuFor(null); setConfirmFor({ id: a.id, name: a.name }) } }}
+                          className={`flex min-h-10 w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] transition ${hasHistory ? 'cursor-not-allowed text-zinc-300' : 'text-red-600 hover:bg-red-50'}`}>
+                          <UserMinus className="h-3.5 w-3.5" />Remove from team
+                        </button>
+                        {hasHistory && <div className="px-2.5 pb-1.5 pt-1 text-[10.5px] leading-snug text-zinc-400">{vs.length} verifications · {asgs.length} assignments on record — history stays intact, so delete is locked. Deactivate instead.</div>}
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
               <div className="mt-3 grid grid-cols-3 gap-2 text-center">
                 <div className="rounded-lg bg-zinc-50 py-2"><div className="text-sm font-semibold tabular-nums text-zinc-800">{vs.length}</div><div className="text-[10px] text-zinc-400">verifications</div></div>
@@ -162,6 +264,32 @@ export function TeamView() {
           )
         })}
       </div>
+      {world!.auditors.length === 0 && (
+        <div className="card flex flex-col items-center gap-2 p-10 text-center">
+          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100"><History className="h-6 w-6" /></span>
+          <div className="text-[14px] font-semibold text-zinc-800">No team members yet</div>
+          <p className="max-w-xs text-[13px] text-zinc-500">Add your first auditor — they appear instantly in the mobile app and can be assigned to audits.</p>
+          <button onClick={() => setAddOpen(true)} className="mt-1 inline-flex h-10 items-center gap-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 px-4 text-[13px] font-bold text-white transition hover:brightness-105"><UserPlus className="h-4 w-4" />Add team member</button>
+        </div>
+      )}
+      <AddMemberDialog open={addOpen} onOpenChange={setAddOpen} />
+      <AlertDialog open={!!confirmFor} onOpenChange={(v) => !v && setConfirmFor(null)}>
+        <AlertDialogContent className="w-[calc(100vw-2rem)] max-w-md rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove {confirmFor?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes the member. This is only possible because they have no verifications or assignments on record — members with audit history are deactivated instead.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col-reverse gap-2 sm:flex-row">
+            <AlertDialogCancel className="h-10 rounded-lg">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); confirmRemove() }} disabled={removing}
+              className="h-10 rounded-lg bg-gradient-to-r from-red-500 to-rose-600 text-white hover:from-red-600 hover:to-rose-700">
+              {removing ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserMinus className="h-4 w-4" />}{removing ? 'Removing…' : 'Remove member'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

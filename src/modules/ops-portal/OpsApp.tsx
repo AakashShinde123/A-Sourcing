@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { cn } from '@/lib/utils'
-import { LayoutDashboard, ClipboardCheck, Boxes, MapPin, ShieldAlert, ImageIcon, FileText, ChartColumnBig, Users, Building2, History, ArrowLeft, QrCode, Search, Menu, X } from 'lucide-react'
+import { LayoutDashboard, ClipboardCheck, Boxes, MapPin, ShieldAlert, ImageIcon, FileText, ChartColumnBig, Users, Building2, History, ArrowLeft, QrCode, Search, Menu, X, ShieldCheck } from 'lucide-react'
 import { useES, type OpsView } from '@/modules/shared/store'
 import { ModuleSwitcher } from '@/modules/shared/ModuleSwitcher'
 import { Asset360Drawer } from '@/modules/shared/views/Asset360Drawer'
@@ -12,6 +12,7 @@ import { AssetsTable } from '@/modules/shared/views/AssetsTable'
 import { ExceptionsCenter } from '@/modules/shared/views/ExceptionsCenter'
 import { ClientsView, LocationsView, EvidenceView, ReportsView } from '@/modules/shared/views/MiscViews'
 import { AnalyticsView, TeamView, LogsView } from './AnalyticsTeamLogs'
+import { AccessView } from './AccessView'
 
 const NAV: { section: string; items: { id: OpsView; label: string; icon: React.ReactNode; badge?: 'exceptions' }[] }[] = [
   { section: 'Operations', items: [
@@ -32,19 +33,21 @@ const NAV: { section: string; items: { id: OpsView; label: string; icon: React.R
   { section: 'Manage', items: [
     { id: 'clients', label: 'Clients', icon: <Building2 className="h-4 w-4" /> },
     { id: 'team', label: 'Field Team', icon: <Users className="h-4 w-4" /> },
+    { id: 'access', label: 'Access & Accounts', icon: <ShieldCheck className="h-4 w-4" /> },
   ] },
 ]
 
 const TITLES: Record<OpsView, string> = {
   overview: 'Operations Overview', clients: 'Clients', locations: 'Locations', audits: 'Audit Projects',
   assets: 'Asset Register', exceptions: 'Exception Center', evidence: 'Evidence Center', reports: 'Reports',
-  analytics: 'Analytics & Risk', team: 'Field Team', logs: 'Digital Audit Trail',
+  analytics: 'Analytics & Risk', team: 'Field Team', access: 'Access & Accounts', logs: 'Digital Audit Trail',
 }
 
 // One nav definition shared by the desktop aside and the mobile drawer —
 // they can never drift apart.
 function OpsNav({ onNavigate }: { onNavigate?: () => void }) {
-  const { world, opsView, setOpsView, setSurface } = useES()
+  const { world, opsView, setOpsView, setSurface, user } = useES()
+  const isAdmin = user?.role === 'ADMIN'
   return (
     <>
       <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-4">
@@ -55,7 +58,7 @@ function OpsNav({ onNavigate }: { onNavigate?: () => void }) {
               <span className="text-[9.5px] font-bold uppercase tracking-[0.16em] text-zinc-400">{g.section}</span>
             </div>
             <div className="space-y-0.5">
-              {g.items.map((it) => {
+              {g.items.filter((it) => it.id !== 'access' || isAdmin).map((it) => {
                 const active = opsView === it.id
                 const badgeCount = it.badge === 'exceptions' ? (world?.stats.openExceptions ?? 0) : 0
                 return (
@@ -86,7 +89,7 @@ function OpsNav({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 export function OpsApp() {
-  const { opsView, setSurface } = useES()
+  const { opsView, setSurface, user } = useES()
   const [navOpen, setNavOpen] = useState(false)
 
   return (
@@ -155,8 +158,10 @@ export function OpsApp() {
               <kbd className="absolute right-2.5 top-1/2 hidden -translate-y-1/2 rounded border border-zinc-200 bg-white px-1.5 py-0.5 font-mono text-[9.5px] text-zinc-400 xl:block">⌘K</kbd>
             </div>
             <div className="hidden items-center gap-2 rounded-full bg-gradient-to-r from-emerald-50 to-teal-50 py-1 pl-1 pr-3 ring-1 ring-emerald-200/70 sm:flex">
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-[10px] font-bold text-white ring-1 ring-white/20">MK</span>
-              <span className="text-[12px] font-medium text-emerald-900/80">Meera K. · Ops Manager</span>
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-[10px] font-bold text-white ring-1 ring-white/20">
+                {user ? user.name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase() : '—'}
+              </span>
+              <span className="text-[12px] font-medium text-emerald-900/80">{user ? `${user.name} · ${user.role === 'ADMIN' ? 'Platform Admin' : user.role === 'OPS' ? 'Ops Team' : user.role}` : '…'}</span>
             </div>
           </div>
         </header>
@@ -171,6 +176,7 @@ export function OpsApp() {
           {opsView === 'reports' && <ReportsView />}
           {opsView === 'analytics' && <AnalyticsView />}
           {opsView === 'team' && <TeamView />}
+          {opsView === 'access' && <AccessView />}
           {opsView === 'logs' && <LogsView />}
           {opsView === 'clients' && <ClientsView />}
         </main>

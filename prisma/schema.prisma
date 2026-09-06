@@ -27,6 +27,7 @@ model Client {
   exceptions Exception[]
   reports   Report[]
   users     ClientUser[]
+  portalAccounts User[]
 }
 
 model ClientUser {
@@ -105,6 +106,24 @@ model Auditor {
   lastSyncAt  DateTime?
   assignments AuditAssignment[]
   verifications Verification[]
+  loginAccount User?
+}
+
+// ─── Platform access (team-only login) ───────────────────────────
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         String    // ADMIN | OPS | CLIENT | AUDITOR
+  clientId     String?
+  client       Client?   @relation(fields: [clientId], references: [id])
+  auditorId    String?   @unique
+  auditor      Auditor?  @relation(fields: [auditorId], references: [id])
+  active       Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
 }
 
 // ─── Audit projects ──────────────────────────────────────────────

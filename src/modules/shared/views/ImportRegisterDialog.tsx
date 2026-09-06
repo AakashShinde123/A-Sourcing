@@ -15,7 +15,7 @@ import { toast } from 'sonner'
 import { FileUp, Sheet, CircleCheck, TriangleAlert, CopyX, Loader2, Upload } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useES } from '../store'
-import { parseRegister, type ParsedRow } from '../register-parse'
+import { parseRegister, parseSheetRows, type ParsedRow } from '../register-parse'
 
 // CSV parsing lives in ../register-parse.ts — pure, unit-tested, no React.
 
@@ -33,6 +33,7 @@ export function ImportRegisterDialog({ open, onOpenChange, defaultClientId, lock
   const { world, importAssets } = useES()
   const [clientId, setClientId] = useState(lockClient ?? defaultClientId ?? '')
   const [text, setText] = useState('')
+  const [grid, setGrid] = useState<(string | number | boolean | null | undefined)[][] | null>(null)
   const [fileName, setFileName] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -40,7 +41,11 @@ export function ImportRegisterDialog({ open, onOpenChange, defaultClientId, lock
   const effectiveClientId = lockClient ?? clientId
   const client = world?.clients.find((c) => c.id === effectiveClientId)
 
-  const { rows, headerMapped } = useMemo(() => parseRegister(text), [text])
+  const parsed = useMemo(
+    () => (grid ? parseSheetRows(grid) : parseRegister(text)),
+    [grid, text],
+  )
+  const { rows, headerMapped } = parsed
   const validRows = useMemo(
     () => rows.filter((r) => r.clientAssetId && r.description && r.category),
     [rows],
@@ -51,11 +56,22 @@ export function ImportRegisterDialog({ open, onOpenChange, defaultClientId, lock
   const onFile = async (f: File | null) => {
     if (!f) return
     setFileName(f.name)
-    const content = await f.text()
-    setText(content)
+    if (/\.xlsx?$/i.test(f.name)) {
+      // Real Excel workbooks — SheetJS is loaded on first use to keep the app bundle lean.
+      const XLSX = await import('xlsx')
+      const buf = await f.arrayBuffer()
+      const wb = XLSX.read(buf, { type: 'array' })
+      const sheet = wb.Sheets[wb.SheetNames[0]]
+      const cells = XLSX.utils.sheet_to_json<(string | number | boolean | null | undefined)[]>(sheet, { header: 1, raw: false, defval: '' })
+      setGrid(cells)
+      setText('')
+    } else {
+      setGrid(null)
+      setText(await f.text())
+    }
   }
 
-  const reset = () => { setText(''); setFileName(null); if (fileRef.current) fileRef.current.value = '' }
+  const reset = () => { setText(''); setGrid(null); setFileName(null); if (fileRef.current) fileRef.current.value = '' }
 
   const doImport = async () => {
     if (!effectiveClientId || !validRows.length) return
@@ -86,7 +102,7 @@ export function ImportRegisterDialog({ open, onOpenChange, defaultClientId, lock
             Import asset register
           </DialogTitle>
           <DialogDescription className="text-left">
-            Start the engagement from the client&apos;s own register — export their Excel to CSV, drop it here.
+            Start the engagement from the client&apos;s own register — drop their Excel (.xlsx) or CSV export here.
             Columns are auto-detected; duplicates are skipped, never double-counted.
           </DialogDescription>
         </DialogHeader>
@@ -115,7 +131,7 @@ export function ImportRegisterDialog({ open, onOpenChange, defaultClientId, lock
               fileName ? 'border-emerald-300 bg-emerald-50/50' : 'border-zinc-300 bg-zinc-50/60 hover:border-emerald-300 hover:bg-emerald-50/40',
             )}
           >
-            <input ref={fileRef} type="file" accept=".csv,text/csv,text/plain" className="sr-only" onChange={(e) => onFile(e.target.files?.[0] ?? null)} />
+            <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls,text/csv,text/plain" className="sr-only" onChange={(e) => onFile(e.target.files?.[0] ?? null)} />
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm ring-1 ring-zinc-200">
               <Sheet className="h-5 w-5 text-emerald-600" />
             </span>
@@ -123,8 +139,8 @@ export function ImportRegisterDialog({ open, onOpenChange, defaultClientId, lock
               <span className="text-[13px] font-semibold text-emerald-700">{fileName} loaded — {rows.length} row{rows.length === 1 ? '' : 's'} found</span>
             ) : (
               <>
-                <span className="text-[13px] font-semibold text-zinc-700">Drop the register CSV here or click to browse</span>
-                <span className="text-[11.5px] text-zinc-400">Excel → Save As → CSV · columns auto-detected</span>
+                <span className="text-[13px] font-semibold text-zinc-700">Drop the register here — Excel (.xlsx) or CSV</span>
+                <span className="text-[11.5px] text-zinc-400">First worksheet is read · columns auto-detected</span>
               </>
             )}
           </label>
@@ -136,8 +152,8 @@ export function ImportRegisterDialog({ open, onOpenChange, defaultClientId, lock
             </summary>
             <div className="px-3 pb-3">
               <textarea
-                value={text}
-                onChange={(e) => { setText(e.target.value); setFileName(null) }}
+                value={grid ? '' : text}
+                onChange={(e) => { setText(e.target.value); setGrid(null); setFileName(null) }}
                 placeholder={SAMPLE_CSV}
                 rows={5}
                 className="w-full resize-y rounded-lg border border-zinc-200 bg-white p-2.5 font-mono text-[11.5px] leading-relaxed outline-none transition placeholder:text-zinc-300 focus:border-emerald-400 focus:shadow-[0_0_0_3px_rgba(16,185,129,0.12)]"

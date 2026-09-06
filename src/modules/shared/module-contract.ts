@@ -16,7 +16,7 @@ export type AccentKey = 'emerald' | 'teal' | 'amber' | 'violet'
 export type ModuleKind = 'shell' | 'portal' | 'mobile' | 'service'
 
 export interface ApiCall {
-  method: 'GET' | 'POST' | 'PATCH'
+  method: 'GET' | 'POST' | 'PATCH' | 'DELETE'
   path: string
   purpose: string
 }
@@ -63,7 +63,7 @@ export const SHARED_KERNEL = {
 export const CORE_API_MANIFEST: ModuleManifest = {
   id: 'core-api',
   name: 'Core API Service',
-  version: '2.1.4',
+  version: '2.2.0',
   kind: 'service',
   tagline: 'The single source of truth every module talks to',
   description:
@@ -76,12 +76,19 @@ export const CORE_API_MANIFEST: ModuleManifest = {
     { method: 'PATCH', path: '/api/core/exceptions', purpose: 'Exception lifecycle transitions' },
     { method: 'POST', path: '/api/core/approvals', purpose: 'Client sign-off decisions' },
     { method: 'POST', path: '/api/core/reports', purpose: 'Report generate / finalize' },
+    { method: 'POST', path: '/api/core/assets/import', purpose: 'Asset-register intake (CSV rows, idempotent)' },
+    { method: 'POST', path: '/api/core/auditors', purpose: 'Add field team member (auto ES-EMP code)' },
+    { method: 'PATCH', path: '/api/core/auditors', purpose: 'Team member status / contact update' },
+    { method: 'DELETE', path: '/api/core/auditors', purpose: 'Remove member (409 if audit history exists)' },
+    { method: 'POST', path: '/api/core/clients', purpose: 'Onboard client (auto code + portal admin)' },
+    { method: 'PATCH', path: '/api/core/clients', purpose: 'Client lifecycle: active / onboarding / paused' },
+    { method: 'DELETE', path: '/api/core/clients', purpose: 'Remove client (409 if operational data exists)' },
     { method: 'GET', path: '/api/core/registry', purpose: 'Service discovery (this endpoint)' },
   ],
   deploy: {
     standalone: true,
     target: 'api.easysourcing.in',
-    image: 'registry.es/core-api:2.1.4',
+    image: 'registry.es/core-api:2.2.0',
     deps: ['prisma', 'zod'],
   },
   screens: [],
@@ -92,4 +99,5 @@ export const METHOD_CLS: Record<ApiCall['method'], string> = {
   GET: 'bg-emerald-100 text-emerald-700 ring-emerald-500/25',
   POST: 'bg-violet-100 text-violet-700 ring-violet-500/25',
   PATCH: 'bg-amber-100 text-amber-700 ring-amber-500/30',
+  DELETE: 'bg-red-100 text-red-700 ring-red-500/25',
 }

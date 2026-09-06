@@ -7,9 +7,16 @@
 
 import React, { useState } from 'react'
 import { cn } from '@/lib/utils'
-import { Check, ChevronsUpDown, LayoutDashboard, ScanLine, Building2, Boxes, QrCode, Layers } from 'lucide-react'
-import { useES } from './store'
+import { Check, ChevronsUpDown, LayoutDashboard, ScanLine, Building2, Boxes, QrCode, Layers, LogOut, ShieldCheck } from 'lucide-react'
+import { useES, surfacesForRole, type AuthUser } from './store'
 import { METHOD_CLS, type IconKey, type ModuleManifest } from './module-contract'
+
+const ROLE_CLS: Record<AuthUser['role'], string> = {
+  ADMIN: 'bg-violet-100 text-violet-700 ring-violet-200',
+  OPS: 'bg-emerald-100 text-emerald-700 ring-emerald-200',
+  CLIENT: 'bg-amber-100 text-amber-700 ring-amber-200',
+  AUDITOR: 'bg-teal-100 text-teal-700 ring-teal-200',
+}
 
 export const MODULE_ICONS: Record<IconKey, React.ComponentType<{ className?: string }>> = {
   'layout-dashboard': LayoutDashboard,
@@ -29,10 +36,10 @@ export const ACCENT_CLS: Record<string, { solid: string; soft: string; ring: str
 }
 
 export function ModuleSwitcher({ current, dark = true, align = 'left', direction = 'down', compact = false }: { current: string; dark?: boolean; align?: 'left' | 'right'; direction?: 'down' | 'up'; compact?: boolean }) {
-  const { setSurface } = useES()
+  const { setSurface, user, logout } = useES()
   const [open, setOpen] = useState(false)
 
-  const items: { id: string; label: string; kind: string; version: string; iconKey: IconKey; accent: string; note: string }[] = [
+  const allItems: { id: string; label: string; kind: string; version: string; iconKey: IconKey; accent: string; note: string }[] = [
     { id: 'landing', label: 'Platform Hub', kind: 'shell', version: '2.0.0', iconKey: 'qr-code', accent: 'violet', note: 'Home · discover modules' },
     { id: 'architecture', label: 'System Architecture', kind: 'map', version: '—', iconKey: 'boxes', accent: 'violet', note: 'Live topology & contracts' },
     { id: 'planner', label: 'Deployment Planner', kind: 'plan', version: '—', iconKey: 'boxes', accent: 'violet', note: 'Where modules run, by team size' },
@@ -40,6 +47,10 @@ export function ModuleSwitcher({ current, dark = true, align = 'left', direction
     { id: 'mobile', label: 'Auditor Mobile', kind: 'mobile', version: '2.1.1', iconKey: 'scan-line', accent: 'teal', note: 'For field auditors' },
     { id: 'client', label: 'Client Portal', kind: 'portal', version: '2.0.3', iconKey: 'building-2', accent: 'amber', note: 'For your customers' },
   ]
+
+  // Role-scoped visibility — CLIENT sees only their portal, AUDITOR only the mobile app.
+  const allowed = user ? surfacesForRole(user.role) : []
+  const items = allItems.filter((it) => allowed.includes(it.id as never) || (user && ['ADMIN', 'OPS'].includes(user.role) && ['landing', 'architecture', 'planner'].includes(it.id)))
 
   return (
     <div className="relative">
@@ -93,8 +104,34 @@ export function ModuleSwitcher({ current, dark = true, align = 'left', direction
                 )
               })}
             </div>
-            <div className="border-t border-zinc-100 bg-zinc-50/60 px-3.5 py-2 text-[10px] text-zinc-500">
-              Cross-module calls ride the REST contract — never direct imports.
+
+            {user && (
+              <div className="border-t border-zinc-100 bg-zinc-50/60 p-2">
+                <div className="flex items-center gap-2.5 rounded-xl px-1.5 py-1">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 text-[11px] font-bold text-white">
+                    {user.name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[12.5px] font-semibold text-zinc-900">{user.name}</span>
+                    <span className="block truncate text-[10.5px] text-zinc-500">{user.email}</span>
+                  </span>
+                  <span className={cn('shrink-0 rounded px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wider ring-1', ROLE_CLS[user.role])}>
+                    {user.role}
+                  </span>
+                </div>
+                <button role="menuitem" onClick={() => { setOpen(false); void logout() }}
+                  className="mt-1 flex min-h-11 w-full items-center gap-2 rounded-xl px-2.5 text-[12.5px] font-semibold text-zinc-600 transition hover:bg-red-50 hover:text-red-600">
+                  <LogOut className="h-3.5 w-3.5" /> Sign out
+                </button>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between gap-2 border-t border-zinc-100 bg-white px-3.5 py-2 text-[10px] text-zinc-500">
+              <span className="flex items-center gap-1.5">
+                <ShieldCheck className="h-3 w-3 text-emerald-500" />
+                Private · role-scoped access
+              </span>
+              <span className="hidden sm:inline">Modules talk REST — never direct imports</span>
             </div>
           </div>
         </>
@@ -102,7 +139,6 @@ export function ModuleSwitcher({ current, dark = true, align = 'left', direction
     </div>
   )
 }
-
 /** Method badge used across the architecture map and module cards */
 export function MethodBadge({ method }: { method: 'GET' | 'POST' | 'PATCH' }) {
   return (

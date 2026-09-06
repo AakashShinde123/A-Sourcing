@@ -17,16 +17,38 @@ const approvalAuditIds: string[] = []
 const reportAuditIds: string[] = []
 const syncOpIds: string[] = []
 
+// The Core API sits behind the platform login (team-only deployment) — the
+// suite signs in once as the seeded admin and rides the session cookie.
+let sessionCookie = ''
+
 async function api(method: string, path: string, body?: unknown): Promise<Response> {
   return fetch(`${BASE}${path}`, {
     method,
-    headers: body !== undefined ? { 'content-type': 'application/json' } : {},
+    headers: {
+      ...(body !== undefined ? { 'content-type': 'application/json' } : {}),
+      ...(sessionCookie ? { cookie: sessionCookie } : {}),
+    },
     body: body !== undefined ? JSON.stringify(body) : undefined,
+  })
+}
+
+async function login(email: string, password: string): Promise<Response> {
+  return fetch(`${BASE}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email, password }),
   })
 }
 
 beforeAll(async () => {
   tag = `bb${Date.now().toString(36)}`
+
+  // Sign in before anything touches the protected Core API.
+  const res = await login('admin@easysourcing.in', 'Admin@2026')
+  if (!res.ok) throw new Error(`blackbox setup: admin login failed (${res.status})`)
+  const setCookie = res.headers.get('set-cookie') ?? ''
+  sessionCookie = setCookie.split(';')[0] // "es_session=<jwt>"
+  if (!sessionCookie.startsWith('es_session=')) throw new Error('blackbox setup: no session cookie issued')
   // Fixtures live in the demo DB but are fully torn down in afterAll.
   const client = await db.client.create({
     data: { code: `BBC-${tag}`, name: `BB Client ${tag}`, industry: 'Testing', contact: 'QA', email: `bb.${tag}@es.test`, city: 'Testville', since: new Date() },
@@ -188,7 +210,7 @@ describe('exception lifecycle over the wire', () => {
   test('400 invalid action / 404 unknown id / 400 malformed JSON', async () => {
     expect((await api('PATCH', '/api/core/exceptions', { id: fx.exceptionId, action: 'detonate' })).status).toBe(400)
     expect((await api('PATCH', '/api/core/exceptions', { id: 'no-such-id', action: 'assign' })).status).toBe(404)
-    const raw = await fetch(`${BASE}/api/core/exceptions`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: '{{{' })
+    const raw = await fetch(`${BASE}/api/core/exceptions`, { method: 'PATCH', headers: { 'content-type': 'application/json', cookie: sessionCookie }, body: '{{{' })
     expect(raw.status).toBe(400)
     expect(raw.headers.get('content-type')).toContain('application/json')
   })

@@ -177,3 +177,30 @@ Stage Summary:
 - Platform now matches the real audit-company workflow front door: client sends register (Excel→CSV) → ops imports with duplicate protection → tagging/assignment → field verification. 96 tests green (77 whitebox + 19 blackbox), lint clean, registry 200
 - Reference portal verdict: same genre (physical verification), but single-operator single-page; ours is the multi-tenant platform version of it with governance the tool lacks
 - Screenshots: .zscripts/ref-portal-*.png, audit/import-dialog.png, audit/import-filled.png, audit/import-390.png
+
+---
+Task ID: 8
+Agent: Super Z (main)
+Task: Field Team + Clients CRUD (add / remove / deactivate / pause) — user: "in operation client field team how to add delete remove... fix all and operator and client also make mobile responsive"
+
+Work Log:
+- Root cause of "how to add/delete": TeamView and ClientsView were read-only; no API existed for auditor or client management
+- NEW API — src/app/api/core/auditors/route.ts: POST (name/email required, validation, case-insensitive dup email 409, auto ES-EMP-NNN code via max-suffix scan, rotating colorSeed, TEAM_MEMBER_ADDED log), PATCH (status available/in_field/offline + phone/city; name/email immutable; TEAM_MEMBER_STATUS log), DELETE (?id=; guard: any assignments/verifications → 409 hasHistory + counts; clean delete logs TEAM_MEMBER_REMOVED)
+- NEW API — src/app/api/core/clients/route.ts: POST (6-field validation, unique client code derived from name with suffix fallback QAC→QAC-B→QAC-2, status onboarding, auto-creates default Client Admin portal user = primary contact, CLIENT_ADDED log), PATCH (active/onboarding/paused + CLIENT_STATUS log), DELETE (?id=; guard: locations/assets/audits/exceptions/reports → 409 hasData; empty client + portal users deleted in transaction, CLIENT_REMOVED log)
+- store.tsx: addAuditor / setAuditorStatus / removeAuditor / addClient / setClientStatus / removeClient (toasts surface the server's 409/400 messages verbatim); shared apiError() helper
+- TeamView rebuilt: gradient "Add team member" button + dialog (name/email/phone/city); per-card ⋯ menu (44px targets) with Deactivate/Reactivate + Remove-from-team; BUG FOUND & FIXED during E2E: disabled={!hasHistory} was inverted (locked removal for members WITHOUT history, allowed it for members WITH) → corrected to disabled={hasHistory}; locked state shows inline explainer "N verifications · M assignments on record — delete is locked..."; AlertDialog confirm on remove; empty state with Add CTA
+- ClientsView rebuilt: "Add client" button + dialog (org/industry/city/contact/email/phone, code auto-allocated note); expanded card gains Pause/Reactivate + Remove (locked with explainer when client holds data); status pills extended with Paused; empty state CTA
+- Mobile audit (390px) found REAL overflow bugs; fixed all:
+  · .card min-width:0 in globals.css — grid-blowout guard (Overview main 523px→OK, Clients 474px→OK, Audit Projects 398px→OK)
+  · Evidence audit filter select blew out (505px) → min-w-0 wrapper + max-w-full/min-w-0 select → OK
+  · Ops + Client portals swept view-by-view at 390: 11 ops views + 7 client views all OK; desktop 1280 re-swept all OK (no regression from min-width guard)
+  · (Turbopack quirk: globals.css change needed a real content append to invalidate the CSS chunk — verified rule present in served CSS before re-sweeping)
+- Core API manifest 2.1.4 → 2.2.0: apiContract now lists 13 endpoints incl. assets/import + auditors + clients CRUD; ApiCall method union + METHOD_CLS gained DELETE (red chip)
+- Tests: tests/whitebox/auditors-clients.test.ts — 16 tests (create/validation/dup 409/status lifecycle+logs, history guard 409 keeps row, clean delete + logs, client code derivation + collision fallback, pause/reactivate + logs, hasData guard, empty delete cascades users, 400/404s)
+- E2E (agent-browser): added Ravi Sharma via dialog → appeared as ES-EMP-039 Available; removed him via confirm; Arjun (27 verifications) Remove locked + explainer; deactivate→Offline→reactivate→Available; added Sunrise Fabrics → SUN code + Meera portal admin + Onboarding; pause→Paused→reactivate→Active; removed empty client; Meridian Remove locked; all 6 CRUD actions present in Audit Trail (TEAM_MEMBER_*/CLIENT_* 6/6)
+- Regression: ESLint clean; whitebox 93/93 (77+16) + blackbox 19/19 = 112 green; registry healthy core-api 2.2.0 (13-endpoint contract); fresh-session 0 console errors / 0 page errors; dev.log clean
+
+Stage Summary:
+- Field Team and Clients are now fully manageable from the Ops Portal: add members/clients, deactivate/reactivate, pause/reactivate, remove with confirm — guarded so audit history and client data can never be destroyed by a delete
+- Every Ops + Client view is overflow-free at 390px and clean at 1280px
+- Screenshots: .zscripts/{team,clients}-desktop-1280.png, team-add-dialog-390.png, client-add-dialog-390.png, remove-confirm-390.png, client-added-390.png, arjun-locked-390.png, meridian-locked-390.png

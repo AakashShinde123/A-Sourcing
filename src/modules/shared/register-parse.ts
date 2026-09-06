@@ -49,35 +49,48 @@ export const HEADER_ALIASES: Record<string, keyof ParsedRow> = {
   custodian: 'custodian', user: 'custodian', username: 'custodian', holder: 'custodian', employee: 'custodian',
 }
 
-/** Parse register text (CSV) → rows. First row is treated as a header when its
- *  cells map to known column aliases; otherwise positional order is assumed. */
-export function parseRegister(text: string): { rows: ParsedRow[]; headerMapped: boolean } {
-  const lines = text.split(/\r?\n/).filter((l) => l.trim().length)
+const POSITIONAL_KEYS: (keyof ParsedRow)[] = ['clientAssetId', 'description', 'category', 'make', 'model', 'serialNumber', 'barcode', 'locationLabel', 'custodian']
+
+/** Shared grid parser — one code path for CSV text and Excel sheets alike. */
+function parseGrid(grid: string[][]): { rows: ParsedRow[]; headerMapped: boolean } {
+  const lines = grid.filter((r) => r.some((c) => c.trim().length))
   if (!lines.length) return { rows: [], headerMapped: false }
 
-  const headerCells = splitCsvLine(lines[0]).map((c) => c.toLowerCase().replace(/[^a-z ]/g, '').trim())
+  const headerCells = lines[0].map((c) => c.toLowerCase().replace(/[^a-z ]/g, '').trim())
   const mapped = headerCells.map((c) => HEADER_ALIASES[c.replace(/ /g, '')] ?? HEADER_ALIASES[c] ?? null)
   const headerMapped = mapped.filter(Boolean).length >= 3 // a real header names at least 3 known columns
 
   if (headerMapped) {
-    const rows = lines.slice(1).map((line) => {
-      const cells = splitCsvLine(line)
+    const rows = lines.slice(1).map((cells) => {
       const row: ParsedRow = {}
-      mapped.forEach((key, i) => { if (key && cells[i]) row[key] = cells[i] })
+      mapped.forEach((key, i) => { const v = cells[i]?.trim(); if (key && v) row[key] = v })
       return row
     })
     return { rows, headerMapped: true }
   }
 
   // Positional fallback: clientAssetId, description, category, make, model, serial, barcode, location, custodian
-  const keys: (keyof ParsedRow)[] = ['clientAssetId', 'description', 'category', 'make', 'model', 'serialNumber', 'barcode', 'locationLabel', 'custodian']
   return {
-    rows: lines.map((line) => {
-      const cells = splitCsvLine(line)
+    rows: lines.map((cells) => {
       const row: ParsedRow = {}
-      keys.forEach((k, i) => { if (cells[i]) row[k] = cells[i] })
+      POSITIONAL_KEYS.forEach((k, i) => { const v = cells[i]?.trim(); if (v) row[k] = v })
       return row
     }),
     headerMapped: false,
   }
+}
+
+/** Parse register text (CSV) → rows. First row is treated as a header when its
+ *  cells map to known column aliases; otherwise positional order is assumed. */
+export function parseRegister(text: string): { rows: ParsedRow[]; headerMapped: boolean } {
+  const lines = text.split(/\r?\n/).filter((l) => l.trim().length)
+  return parseGrid(lines.map(splitCsvLine))
+}
+
+export type SheetCell = string | number | boolean | null | undefined
+
+/** Parse worksheet rows (SheetJS `sheet_to_json(ws, { header: 1 })` shape) →
+ *  register rows. Numbers (Excel stores amounts/years as numbers) are stringified. */
+export function parseSheetRows(cells: SheetCell[][]): { rows: ParsedRow[]; headerMapped: boolean } {
+  return parseGrid(cells.map((row) => row.map((c) => (c === null || c === undefined ? '' : String(c)))))
 }
