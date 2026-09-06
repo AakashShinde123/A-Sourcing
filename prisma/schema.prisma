@@ -1,0 +1,256 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Organization ────────────────────────────────────────────────
+
+model Client {
+  id        String  @id @default(cuid())
+  code      String  @unique
+  name      String
+  industry  String
+  status    String  @default("active") // active | onboarding | paused
+  contact   String
+  email     String
+  phone     String?
+  city      String
+  since     DateTime
+  colorSeed String  @default("emerald")
+  locations Location[]
+  assets    Asset[]
+  audits    AuditProject[]
+  exceptions Exception[]
+  reports   Report[]
+  users     ClientUser[]
+}
+
+model ClientUser {
+  id       String @id @default(cuid())
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+  name     String
+  role     String // Client Admin | Client Manager | Client Viewer | Client Approver
+  email    String
+}
+
+// ─── Locations: Client → Site → Building → Floor → Zone → Dept → Room ───
+
+model Location {
+  id        String     @id @default(cuid())
+  clientId  String
+  client    Client     @relation(fields: [clientId], references: [id])
+  parentId  String?
+  parent    Location?  @relation("LocTree", fields: [parentId], references: [id])
+  children  Location[] @relation("LocTree")
+  level     String // site | building | floor | zone | department | room
+  name      String
+  code      String
+  address   String?
+  gpsLat    Float?
+  gpsLng    Float?
+  status    String     @default("active")
+  assets    Asset[]
+  assignments AuditAssignment[]
+}
+
+// ─── Assets ──────────────────────────────────────────────────────
+
+model Asset {
+  id             String   @id @default(cuid())
+  clientId       String
+  client         Client   @relation(fields: [clientId], references: [id])
+  code           String   @unique // internal ES asset id e.g. ES-MRD-00121
+  clientAssetId  String   // client's own asset id
+  description    String
+  category       String
+  subcategory    String?
+  make           String?
+  model          String?
+  serialNumber   String?
+  barcode        String?
+  qrCode         String?  @unique
+  locationId     String?
+  location       Location? @relation(fields: [locationId], references: [id])
+  custodian      String?
+  status         String   @default("active") // registered | tagged | assigned | active | maintenance | missing | disposed | retired
+  condition      String?  // excellent | good | fair | poor
+  purchaseDate   DateTime?
+  purchaseCost   Float?
+  currentValue   Float?
+  lastVerifiedAt DateTime?
+  assignmentId   String?
+  assignment     AuditAssignment? @relation(fields: [assignmentId], references: [id])
+  verifications  Verification[]
+  exceptions     Exception[]
+  evidence       Evidence[]
+  createdAt      DateTime @default(now())
+}
+
+// ─── Field team ──────────────────────────────────────────────────
+
+model Auditor {
+  id          String  @id @default(cuid())
+  name        String
+  email       String  @unique
+  phone       String?
+  employeeCode String
+  status      String  @default("available") // available | in_field | offline
+  city        String?
+  colorSeed   String  @default("emerald")
+  lastSyncAt  DateTime?
+  assignments AuditAssignment[]
+  verifications Verification[]
+}
+
+// ─── Audit projects ──────────────────────────────────────────────
+
+model AuditProject {
+  id           String  @id @default(cuid())
+  clientId     String
+  client       Client  @relation(fields: [clientId], references: [id])
+  code         String  @unique
+  name         String
+  type         String // Annual Physical Verification | Fixed Asset Verification | Asset Tagging | Location Verification | Custodian Verification | Special Audit
+  status       String  @default("draft") // draft | planning | ready | in_progress | field_complete | review | client_review | completed | archived
+  financialYear String
+  startDate    DateTime
+  endDate      DateTime?
+  totalInScope Int     @default(0)
+  evidenceRequired Boolean @default(true)
+  locationsLabel String?
+  assignments  AuditAssignment[]
+  verifications Verification[]
+  exceptions   Exception[]
+  reports      Report[]
+  approvals    Approval[]
+}
+
+model AuditAssignment {
+  id         String  @id @default(cuid())
+  auditId    String
+  audit      AuditProject @relation(fields: [auditId], references: [id])
+  auditorId  String
+  auditor    Auditor @relation(fields: [auditorId], references: [id])
+  locationId String?
+  location   Location? @relation(fields: [locationId], references: [id])
+  scope      String
+  status     String  @default("assigned") // assigned | in_progress | field_complete
+  assets     Asset[]
+  verifications Verification[]
+}
+
+// ─── Verification & evidence ─────────────────────────────────────
+
+model Verification {
+  id            String  @id @default(cuid())
+  operationId   String  @unique // idempotent sync key from mobile
+  auditId       String
+  audit         AuditProject @relation(fields: [auditId], references: [id])
+  assignmentId  String?
+  assignment    AuditAssignment? @relation(fields: [assignmentId], references: [id])
+  assetId       String?
+  asset         Asset?  @relation(fields: [assetId], references: [id])
+  auditorId     String
+  auditor       Auditor @relation(fields: [auditorId], references: [id])
+  result        String // matched | missing | location_mismatch | custodian_mismatch | serial_mismatch | condition_exception | unregistered | deferred
+  method        String  @default("scan") // scan | manual | search | discovery
+  gpsLat        Float?
+  gpsLng        Float?
+  gpsAccuracy   Float?
+  gpsStatus     String  @default("captured") // captured | unavailable
+  remarks       String?
+  photos        String? @default("[]") // JSON array of color seeds
+  createdOffline Boolean @default(false)
+  verifiedAt    DateTime
+  syncedAt      DateTime @default(now())
+  evidence      Evidence[]
+}
+
+model Evidence {
+  id             String  @id @default(cuid())
+  verificationId String?
+  verification   Verification? @relation(fields: [verificationId], references: [id])
+  auditId        String?
+  assetId        String?
+  asset          Asset?  @relation(fields: [assetId], references: [id])
+  clientId       String
+  kind           String // photo | gps | document
+  label          String
+  colorSeed      String  @default("emerald")
+  capturedBy     String?
+  gpsLat         Float?
+  gpsLng         Float?
+  capturedAt     DateTime @default(now())
+}
+
+// ─── Exceptions ──────────────────────────────────────────────────
+
+model Exception {
+  id          String  @id @default(cuid())
+  code        String  @unique
+  clientId    String
+  client      Client  @relation(fields: [clientId], references: [id])
+  auditId     String?
+  audit       AuditProject? @relation(fields: [auditId], references: [id])
+  assetId     String?
+  asset       Asset?  @relation(fields: [assetId], references: [id])
+  type        String // missing | location_mismatch | custodian_mismatch | serial_mismatch | damaged | unregistered | duplicate | tag_issue
+  severity    String  @default("medium") // low | medium | high | critical
+  status      String  @default("open") // open | assigned | investigating | resolved | reviewer_review | approved | closed
+  title       String
+  description String
+  locationLabel String?
+  detectedBy  String
+  detectedAt  DateTime @default(now())
+  assignedTo  String?
+  resolutionNote String?
+  resolvedAt  DateTime?
+  detail      String? // JSON payload for unregistered discoveries
+}
+
+// ─── Reports, approvals, logs ────────────────────────────────────
+
+model Report {
+  id          String  @id @default(cuid())
+  clientId    String
+  client      Client  @relation(fields: [clientId], references: [id])
+  auditId     String?
+  audit       AuditProject? @relation(fields: [auditId], references: [id])
+  code        String  @unique
+  name        String
+  type        String
+  versionLabel String  @default("Draft") // Draft | v1 | v2 | Final
+  status      String  @default("draft") // draft | issued | final
+  generatedBy String
+  generatedAt DateTime @default(now())
+  sizeLabel   String  @default("1.2 MB")
+  summary     String? // JSON snapshot of key figures
+}
+
+model Approval {
+  id       String  @id @default(cuid())
+  clientId String
+  auditId  String
+  audit    AuditProject @relation(fields: [auditId], references: [id])
+  decision String // approved | rejected | changes_requested | clarification
+  byName   String
+  byRole   String
+  comment  String?
+  at       DateTime @default(now())
+}
+
+model AuditLog {
+  id      String   @id @default(cuid())
+  actor   String
+  role    String
+  action  String
+  entity  String
+  entityRef String?
+  detail  String?
+  at      DateTime @default(now())
+}
