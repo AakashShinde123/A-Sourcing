@@ -21,5 +21,5 @@ export const HUB_MANIFEST: ModuleManifest = {
     image: 'registry.es/hub:2.0.0',
     deps: ['@es/shared@2.1'],
   },
-  screens: ['Landing', 'System Architecture'],
+  screens: ['Landing', 'System Architecture', 'Deploy Planner'],
 }

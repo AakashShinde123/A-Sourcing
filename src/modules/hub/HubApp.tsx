@@ -9,6 +9,7 @@ import { Toaster } from 'sonner'
 import { ESProvider, useES } from '../shared/store'
 import { Landing } from './Landing'
 import { ArchitectureMap } from './ArchitectureMap'
+import { DeployPlanner } from './DeployPlanner'
 import { OpsApp } from '../ops-portal/OpsApp'
 import { ClientApp } from '../client-portal/ClientApp'
 import { MobileApp } from '../auditor-mobile/MobileApp'
@@ -33,6 +34,7 @@ function SurfaceRouter() {
     <>
       {surface === 'landing' && <Landing />}
       {surface === 'architecture' && <ArchitectureMap />}
+      {surface === 'planner' && <DeployPlanner />}
       {surface === 'ops' && <OpsApp />}
       {surface === 'client' && <ClientApp />}
       {surface === 'mobile' && <MobileApp />}

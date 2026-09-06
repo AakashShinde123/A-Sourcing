@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { cn } from '@/lib/utils'
-import { QrCode, ScanLine, Building2, ArrowRight, ShieldCheck, FileCheck2, MapPinned, Camera, GitCompareArrows, FolderSearch, Stamp, FileText, ClipboardCheck, Boxes, Network, Globe, Container } from 'lucide-react'
+import { QrCode, ScanLine, Building2, ArrowRight, ShieldCheck, FileCheck2, MapPinned, Camera, GitCompareArrows, FolderSearch, Stamp, FileText, ClipboardCheck, Boxes, Network, Rocket, Globe, Container } from 'lucide-react'
 import { useES } from '../shared/store'
 import { ModuleSwitcher, MODULE_ICONS, ACCENT_CLS } from '../shared/ModuleSwitcher'
 import { MODULES, MODULE_SURFACE } from './registry'
@@ -37,6 +37,11 @@ export function Landing() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <button onClick={() => setSurface('planner')}
+              className="flex h-9 items-center gap-2 rounded-lg bg-white/5 px-3 text-[12px] font-semibold text-zinc-200 ring-1 ring-white/10 transition hover:bg-white/10">
+              <Rocket className="h-3.5 w-3.5 text-violet-300" />
+              <span className="hidden sm:inline">Deploy Planner</span>
+            </button>
             <button onClick={() => setSurface('architecture')}
               className="flex h-9 items-center gap-2 rounded-lg bg-white/5 px-3 text-[12px] font-semibold text-zinc-200 ring-1 ring-white/10 transition hover:bg-white/10">
               <Network className="h-3.5 w-3.5 text-violet-300" />

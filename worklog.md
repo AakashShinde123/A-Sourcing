@@ -65,3 +65,21 @@ Stage Summary:
 - 18 significant bugs found and fixed with regression tests; zero regressions in UI (browser-verified golden paths)
 - Deployment artifacts: DEPLOYMENT.md, Dockerfile, docker-compose.yml, .dockerignore (guide also at download/DEPLOYMENT.md)
 - Live demo DB untouched by tests (fixtures torn down; ES-DSC-00165/EX-2026-0026 are legit prior-session demo data)
+
+---
+Task ID: 4
+Agent: Main agent (Super Z)
+Task: Recommend a proper deployment platform for a 10-person company that will expand (user: "Suggest proper platform .. now currently assume 10 member total in my company but in future it will expand")
+
+Work Log:
+- Answered as both an in-chat recommendation AND a product feature: added a third Hub screen "Deploy Planner" (src/modules/hub/DeployPlanner.tsx)
+- Designed 3-stage team-size model: Stage 1 Launch (≤15: single VPS + docker compose + Caddy, SQLite+backups, ₹700–2.5k/mo), Stage 2 Scale (16–50: Vercel per portal + Fly.io/Railway API + Neon/Supabase Postgres + R2/S3, ₹5–12k/mo), Stage 3 Expansion (51+: AWS ECS Fargate per module + RDS Multi-AZ + CloudFront/S3, ₹40k+/mo) — each with 6-row stack rationale, 5-unit placement table, migration triggers and a "do not skip ahead" warning (no K8s at 10 people)
+- Wired planner: Surface union + 'planner', HubApp router, ModuleSwitcher menu item, Landing header Rocket button, HUB_MANIFEST screens array
+- Updated DEPLOYMENT.md (+ download/ copy) with §1.1 "Which platform? Team-size-based recommendation" table + migration logic summary
+- Fixed tick-mark alignment to true linear positions on the slider scale (2→120)
+- Browser-verified (agent-browser): landing header button, planner renders at team=10 with YOU·TODAY chip, slider→60 auto-recommends Expansion, stage card pinning, native-input-event state sync (input value == displayed number), placement table (9 li), 390px mobile (no h-scroll), ModuleSwitcher navigation, 0 console errors, 0 page errors
+- Regression: ESLint clean, white-box 68/68 pass (isolated db/test.db copy, removed after), black-box 19/19 pass vs live :3000, registry healthy, dev.log clean
+
+Stage Summary:
+- Deliverable: interactive Deployment Planner (Hub screen 3) + §1.1 in DEPLOYMENT.md — recommendation for a 10-person company: START on one VPS with Docker Compose + Caddy (repo already ships compose/Dockerfile/healthchecks), migrate to Vercel+managed-Postgres at ~16 people, ECS/multi-region past 50 — same images, manifests and REST contract at every stage; only deploy targets move
+- Key files: src/modules/hub/DeployPlanner.tsx (new), src/modules/hub/{HubApp,Landing,manifest}.tsx, src/modules/shared/{store.tsx,ModuleSwitcher.tsx}, DEPLOYMENT.md §1.1

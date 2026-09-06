@@ -33,6 +33,7 @@ export function ModuleSwitcher({ current, dark = true, align = 'left', direction
   const items: { id: string; label: string; kind: string; version: string; iconKey: IconKey; accent: string; note: string }[] = [
     { id: 'landing', label: 'Platform Hub', kind: 'shell', version: '2.0.0', iconKey: 'qr-code', accent: 'violet', note: 'Home · discover modules' },
     { id: 'architecture', label: 'System Architecture', kind: 'map', version: '—', iconKey: 'boxes', accent: 'violet', note: 'Live topology & contracts' },
+    { id: 'planner', label: 'Deployment Planner', kind: 'plan', version: '—', iconKey: 'boxes', accent: 'violet', note: 'Where modules run, by team size' },
     { id: 'ops', label: 'Operations Portal', kind: 'portal', version: '2.1.0', iconKey: 'layout-dashboard', accent: 'emerald', note: 'For EasySourcing teams' },
     { id: 'mobile', label: 'Auditor Mobile', kind: 'mobile', version: '2.1.1', iconKey: 'scan-line', accent: 'teal', note: 'For field auditors' },
     { id: 'client', label: 'Client Portal', kind: 'portal', version: '2.0.3', iconKey: 'building-2', accent: 'amber', note: 'For your customers' },

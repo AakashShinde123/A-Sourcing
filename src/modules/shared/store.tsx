@@ -8,7 +8,7 @@ import type { World, QueueOp } from '@/modules/shared/types'
 // integration point that makes standalone modules connected.
 export const API_BASE = '/api/core'
 
-export type Surface = 'landing' | 'architecture' | 'ops' | 'client' | 'mobile'
+export type Surface = 'landing' | 'architecture' | 'planner' | 'ops' | 'client' | 'mobile'
 export type OpsView = 'overview' | 'clients' | 'locations' | 'audits' | 'assets' | 'exceptions' | 'evidence' | 'reports' | 'analytics' | 'team' | 'logs'
 export type ClientView = 'dashboard' | 'audits' | 'assets' | 'exceptions' | 'evidence' | 'reports' | 'approvals'
 
