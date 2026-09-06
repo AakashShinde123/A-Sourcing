@@ -4,14 +4,15 @@ import React, { useMemo, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { LayoutDashboard, ClipboardCheck, Boxes, ShieldAlert, ImageIcon, FileText, Stamp, ArrowLeft, QrCode, ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
-import { useES, type ClientView } from '../store'
-import { Asset360Drawer } from '../Asset360Drawer'
-import { AuditsView } from '../ops/AuditsView'
-import { AssetsTable } from '../ops/AssetsTable'
-import { ExceptionsCenter } from '../ops/ExceptionsCenter'
-import { EvidenceView, ReportsView } from '../ops/MiscViews'
-import { Kpi, Bar as ProgressBar, Pill, MicroLabel, Avatar, EmptyState, SectionHeader } from '../ui-bits'
-import { auditStatusMeta, resultMeta, fmtDate } from '@/lib/es-format'
+import { useES, type ClientView } from '@/modules/shared/store'
+import { ModuleSwitcher } from '@/modules/shared/ModuleSwitcher'
+import { Asset360Drawer } from '@/modules/shared/views/Asset360Drawer'
+import { AuditsView } from '@/modules/shared/views/AuditsView'
+import { AssetsTable } from '@/modules/shared/views/AssetsTable'
+import { ExceptionsCenter } from '@/modules/shared/views/ExceptionsCenter'
+import { EvidenceView, ReportsView } from '@/modules/shared/views/MiscViews'
+import { Kpi, Bar as ProgressBar, Pill, MicroLabel, Avatar, EmptyState, SectionHeader } from '@/modules/shared/ui-bits'
+import { auditStatusMeta, resultMeta, fmtDate } from '@/modules/shared/format'
 
 const NAV: { id: ClientView; label: string; icon: React.ReactNode }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="h-4 w-4" /> },
@@ -55,9 +56,10 @@ export function ClientApp() {
             </button>
           ))}
         </nav>
-        <div className="border-t border-zinc-100 p-3">
-          <button onClick={() => setSurface('landing')} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-[12px] font-medium text-zinc-400 transition hover:bg-zinc-50 hover:text-zinc-600">
-            <ArrowLeft className="h-3.5 w-3.5" /> All surfaces
+        <div className="flex items-center gap-2 border-t border-zinc-100 p-3">
+          <ModuleSwitcher current="Client Portal" dark={false} direction="up" compact />
+          <button onClick={() => setSurface('landing')} className="flex flex-1 items-center gap-2 rounded-lg px-2.5 py-2 text-[12px] font-medium text-zinc-400 transition hover:bg-zinc-50 hover:text-zinc-600">
+            <ArrowLeft className="h-3.5 w-3.5" /> Hub
           </button>
         </div>
       </aside>

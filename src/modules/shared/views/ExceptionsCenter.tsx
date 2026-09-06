@@ -7,10 +7,10 @@ import { Textarea } from '@/components/ui/textarea'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet'
 import { toast } from 'sonner'
 import { ShieldAlert, UserPlus, SearchCheck, CheckCircle2, ClipboardCheck, Lock, ArrowRight } from 'lucide-react'
-import { useES } from '../store'
-import { Pill, SimpleBadge, EmptyState, MicroLabel } from '../ui-bits'
-import { exceptionTypeMeta, exceptionStatusMeta, severityMeta, fmtDateTime } from '@/lib/es-format'
-import type { ExceptionItem } from '@/lib/es-types'
+import { useES } from '@/modules/shared/store'
+import { Pill, SimpleBadge, EmptyState, MicroLabel } from '@/modules/shared/ui-bits'
+import { exceptionTypeMeta, exceptionStatusMeta, severityMeta, fmtDateTime } from '@/modules/shared/format'
+import type { ExceptionItem } from '@/modules/shared/types'
 
 const NEXT_ACTION: Record<string, { action: string; label: string; icon: React.ReactNode }[]> = {
   open: [{ action: 'assign', label: 'Assign', icon: <UserPlus className="h-3.5 w-3.5" /> }],

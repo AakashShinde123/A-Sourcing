@@ -6,10 +6,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button'
 import { Search, ChevronLeft, ChevronRight, Download, QrCode } from 'lucide-react'
 import { toast } from 'sonner'
-import { useES } from '../store'
-import { Pill, SimpleBadge, EmptyState, MicroLabel } from '../ui-bits'
-import { assetStatusMeta, conditionMeta, fmtDateShort, fmtMoneyShort } from '@/lib/es-format'
-import type { Asset } from '@/lib/es-types'
+import { useES } from '@/modules/shared/store'
+import { Pill, SimpleBadge, EmptyState, MicroLabel } from '@/modules/shared/ui-bits'
+import { assetStatusMeta, conditionMeta, fmtDateShort, fmtMoneyShort } from '@/modules/shared/format'
+import type { Asset } from '@/modules/shared/types'
 
 const PAGE = 12
 

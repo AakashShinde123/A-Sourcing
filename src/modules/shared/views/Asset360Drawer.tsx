@@ -5,9 +5,9 @@ import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { useES } from './store'
-import { Pill, SimpleBadge, EvidenceThumb, EmptyState, StatRow, MicroLabel } from './ui-bits'
-import { assetStatusMeta, conditionMeta, resultMeta, fmtDate, fmtDateTime, fmtMoney, fmtMoneyShort } from '@/lib/es-format'
+import { useES } from '@/modules/shared/store'
+import { Pill, SimpleBadge, EvidenceThumb, EmptyState, StatRow, MicroLabel } from '@/modules/shared/ui-bits'
+import { assetStatusMeta, conditionMeta, resultMeta, fmtDate, fmtDateTime, fmtMoney, fmtMoneyShort } from '@/modules/shared/format'
 import { QrCode, MapPin, History, FileCheck2, AlertTriangle, ImageIcon, Boxes } from 'lucide-react'
 
 export function Asset360Drawer() {

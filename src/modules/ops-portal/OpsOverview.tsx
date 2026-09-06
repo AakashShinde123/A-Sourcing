@@ -3,9 +3,9 @@
 import React, { useMemo } from 'react'
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell, PieChart, Pie, Legend } from 'recharts'
 import { ClipboardCheck, Boxes, ShieldAlert, Users, Radar } from 'lucide-react'
-import { useES } from '../store'
-import { Kpi, Bar as ProgressBar, SectionHeader, MicroLabel, Avatar, Pill, EmptyState } from '../ui-bits'
-import { auditStatusMeta, resultMeta, exceptionStatusMeta, severityMeta, fmtDateShort, fmtDateTime } from '@/lib/es-format'
+import { useES } from '@/modules/shared/store'
+import { Kpi, Bar as ProgressBar, SectionHeader, MicroLabel, Avatar, Pill, EmptyState } from '@/modules/shared/ui-bits'
+import { auditStatusMeta, resultMeta, exceptionStatusMeta, severityMeta, fmtDateShort, fmtDateTime } from '@/modules/shared/format'
 
 const RESULT_COLORS: Record<string, string> = {
   matched: '#10b981', missing: '#ef4444', location_mismatch: '#f59e0b',

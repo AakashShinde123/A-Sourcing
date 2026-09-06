@@ -3,11 +3,12 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
-import { useES } from '../store'
+import { useES } from '@/modules/shared/store'
+import { ModuleSwitcher } from '@/modules/shared/ModuleSwitcher'
 import { ScanFlow } from './ScanFlow'
-import { Avatar, Bar as ProgressBar, Pill } from '../ui-bits'
-import { resultMeta, fmtDateShort, exceptionTypeMeta } from '@/lib/es-format'
-import type { QueueOp } from '@/lib/es-types'
+import { Avatar, Bar as ProgressBar, Pill } from '@/modules/shared/ui-bits'
+import { resultMeta, fmtDateShort, exceptionTypeMeta } from '@/modules/shared/format'
+import type { QueueOp } from '@/modules/shared/types'
 import {
   Home, ClipboardList, ScanLine, ShieldAlert, User, Wifi, WifiOff, RefreshCw, Loader2,
   CheckCircle2, Clock, BatteryFull, SignalHigh, ScanFace, LogOut, ChevronRight, MapPin,
@@ -86,9 +87,12 @@ export function MobileApp() {
             </div>
           ))}
         </div>
-        <button onClick={() => setSurface('landing')} className="mt-5 w-fit rounded-lg border border-zinc-300 bg-white px-3.5 py-2 text-[13px] font-medium text-zinc-700 transition hover:border-zinc-400">
-          ← All surfaces
-        </button>
+        <div className="mt-5 flex items-center gap-2">
+          <ModuleSwitcher current="Auditor Mobile" dark={false} direction="up" />
+          <button onClick={() => setSurface('landing')} className="rounded-lg border border-zinc-300 bg-white px-3.5 py-2 text-[13px] font-medium text-zinc-700 transition hover:border-zinc-400">
+            ← Hub
+          </button>
+        </div>
       </div>
 
       {/* Phone */}

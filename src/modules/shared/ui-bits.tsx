@@ -3,7 +3,7 @@
 import React from 'react'
 import { cn } from '@/lib/utils'
 import { Camera, MapPin } from 'lucide-react'
-import { seedColor } from '@/lib/es-format'
+import { seedColor } from '@/modules/shared/format'
 
 // ── Status pill with dot ─────────────────────────────────────────
 export function Pill({ meta, className, size = 'sm' }: { meta: { label: string; cls: string; dot?: string }; className?: string; size?: 'sm' | 'xs' }) {

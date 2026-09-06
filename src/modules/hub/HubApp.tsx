@@ -1,13 +1,17 @@
 'use client'
 
+// Platform Hub · the shell that mounts whichever standalone module is active.
+// Modules stay independent — this file only routes between them.
+
 import React from 'react'
 import { Loader2, QrCode } from 'lucide-react'
 import { Toaster } from 'sonner'
-import { ESProvider, useES } from './store'
+import { ESProvider, useES } from '../shared/store'
 import { Landing } from './Landing'
-import { OpsApp } from './ops/OpsApp'
-import { ClientApp } from './client/ClientApp'
-import { MobileApp } from './mobile/MobileApp'
+import { ArchitectureMap } from './ArchitectureMap'
+import { OpsApp } from '../ops-portal/OpsApp'
+import { ClientApp } from '../client-portal/ClientApp'
+import { MobileApp } from '../auditor-mobile/MobileApp'
 
 function SurfaceRouter() {
   const { surface, loading } = useES()
@@ -19,7 +23,7 @@ function SurfaceRouter() {
           <QrCode className="h-6 w-6 text-white" />
         </span>
         <div className="flex items-center gap-2 text-sm font-medium">
-          <Loader2 className="h-4 w-4 animate-spin text-emerald-400" /> Loading EasySourcing workspace…
+          <Loader2 className="h-4 w-4 animate-spin text-emerald-400" /> Loading EasySourcing platform…
         </div>
       </div>
     )
@@ -28,6 +32,7 @@ function SurfaceRouter() {
   return (
     <>
       {surface === 'landing' && <Landing />}
+      {surface === 'architecture' && <ArchitectureMap />}
       {surface === 'ops' && <OpsApp />}
       {surface === 'client' && <ClientApp />}
       {surface === 'mobile' && <MobileApp />}
@@ -35,7 +40,7 @@ function SurfaceRouter() {
   )
 }
 
-export function EasySourcingApp() {
+export function HubApp() {
   return (
     <ESProvider>
       <SurfaceRouter />

@@ -3,13 +3,14 @@
 import React from 'react'
 import { cn } from '@/lib/utils'
 import { LayoutDashboard, ClipboardCheck, Boxes, MapPin, ShieldAlert, ImageIcon, FileText, ChartColumnBig, Users, Building2, History, ArrowLeft, QrCode, Search } from 'lucide-react'
-import { useES, type OpsView } from '../store'
-import { Asset360Drawer } from '../Asset360Drawer'
+import { useES, type OpsView } from '@/modules/shared/store'
+import { ModuleSwitcher } from '@/modules/shared/ModuleSwitcher'
+import { Asset360Drawer } from '@/modules/shared/views/Asset360Drawer'
 import { OpsOverview } from './OpsOverview'
-import { AuditsView } from './AuditsView'
-import { AssetsTable } from './AssetsTable'
-import { ExceptionsCenter } from './ExceptionsCenter'
-import { ClientsView, LocationsView, EvidenceView, ReportsView } from './MiscViews'
+import { AuditsView } from '@/modules/shared/views/AuditsView'
+import { AssetsTable } from '@/modules/shared/views/AssetsTable'
+import { ExceptionsCenter } from '@/modules/shared/views/ExceptionsCenter'
+import { ClientsView, LocationsView, EvidenceView, ReportsView } from '@/modules/shared/views/MiscViews'
 import { AnalyticsView, TeamView, LogsView } from './AnalyticsTeamLogs'
 
 const NAV: { section: string; items: { id: OpsView; label: string; icon: React.ReactNode; badge?: 'exceptions' }[] }[] = [
@@ -76,9 +77,10 @@ export function OpsApp() {
             </div>
           ))}
         </nav>
-        <div className="border-t border-white/5 p-3">
-          <button onClick={() => setSurface('landing')} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-[12px] font-medium text-zinc-500 transition hover:bg-white/5 hover:text-zinc-300">
-            <ArrowLeft className="h-3.5 w-3.5" /> All surfaces
+        <div className="flex items-center gap-2 border-t border-white/5 p-3">
+          <ModuleSwitcher current="Operations Portal" direction="up" compact />
+          <button onClick={() => setSurface('landing')} className="flex flex-1 items-center gap-2 rounded-lg px-2.5 py-2 text-[12px] font-medium text-zinc-500 transition hover:bg-white/5 hover:text-zinc-300">
+            <ArrowLeft className="h-3.5 w-3.5" /> Hub
           </button>
         </div>
       </aside>

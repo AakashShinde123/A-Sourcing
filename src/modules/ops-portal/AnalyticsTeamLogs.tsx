@@ -3,9 +3,9 @@
 import React, { useMemo } from 'react'
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell, RadialBarChart, RadialBar, PolarAngleAxis } from 'recharts'
 // Note: overview trend uses recharts BarChart; here we favor lightweight custom bars for reliability
-import { Avatar, MicroLabel, Bar as ProgressBar } from '../ui-bits'
-import { useES } from '../store'
-import { fmtDateTime, fmtDateShort } from '@/lib/es-format'
+import { Avatar, MicroLabel, Bar as ProgressBar } from '@/modules/shared/ui-bits'
+import { useES } from '@/modules/shared/store'
+import { fmtDateTime, fmtDateShort } from '@/modules/shared/format'
 import { Radio, LogOut, Database, ShieldCheck } from 'lucide-react'
 
 // ─── Analytics ───────────────────────────────────────────────────

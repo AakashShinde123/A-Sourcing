@@ -3,10 +3,10 @@
 import React, { useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, MapPin, CalendarDays, ShieldCheck, ShieldAlert, ArrowRight, FileText } from 'lucide-react'
-import { useES } from '../store'
-import { Pill, Bar as ProgressBar, Avatar, MicroLabel, EmptyState } from '../ui-bits'
-import { auditStatusMeta, resultMeta, AUDIT_STAGES, auditStageIndex, fmtDate } from '@/lib/es-format'
-import type { Audit } from '@/lib/es-types'
+import { useES } from '@/modules/shared/store'
+import { Pill, Bar as ProgressBar, Avatar, MicroLabel, EmptyState } from '@/modules/shared/ui-bits'
+import { auditStatusMeta, resultMeta, AUDIT_STAGES, auditStageIndex, fmtDate } from '@/modules/shared/format'
+import type { Audit } from '@/modules/shared/types'
 
 export function AuditsView({ clientIdScope }: { clientIdScope?: string }) {
   const { world, selectedAuditId, openAudit } = useES()

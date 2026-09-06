@@ -2,9 +2,13 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import type { World, QueueOp } from '@/lib/es-types'
+import type { World, QueueOp } from '@/modules/shared/types'
 
-export type Surface = 'landing' | 'ops' | 'client' | 'mobile'
+// All module→service traffic goes through the Core API base — the single
+// integration point that makes standalone modules connected.
+export const API_BASE = '/api/core'
+
+export type Surface = 'landing' | 'architecture' | 'ops' | 'client' | 'mobile'
 export type OpsView = 'overview' | 'clients' | 'locations' | 'audits' | 'assets' | 'exceptions' | 'evidence' | 'reports' | 'analytics' | 'team' | 'logs'
 export type ClientView = 'dashboard' | 'audits' | 'assets' | 'exceptions' | 'evidence' | 'reports' | 'approvals'
 
@@ -56,7 +60,7 @@ export function ESProvider({ children }: { children: React.ReactNode }) {
     if (inflight.current) return
     inflight.current = true
     try {
-      const res = await fetch('/api/bootstrap', { cache: 'no-store' })
+      const res = await fetch(`${API_BASE}/bootstrap`, { cache: 'no-store' })
       if (!res.ok) throw new Error(`bootstrap ${res.status}`)
       setWorld(await res.json())
     } catch (e) {
@@ -72,7 +76,7 @@ export function ESProvider({ children }: { children: React.ReactNode }) {
 
   const submitVerifications = useCallback(async (ops: QueueOp[]) => {
     if (!ops.length) return { applied: 0, skipped: 0 }
-    const res = await fetch('/api/verify', {
+    const res = await fetch(`${API_BASE}/verify`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ operations: ops.map(({ label: _label, queuedAt: _q, ...op }) => op) }),
     })
@@ -83,7 +87,7 @@ export function ESProvider({ children }: { children: React.ReactNode }) {
   }, [refresh])
 
   const patchException = useCallback(async (id: string, action: string, note?: string) => {
-    const res = await fetch('/api/exceptions', {
+    const res = await fetch(`${API_BASE}/exceptions`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, action, note }),
     })
@@ -92,7 +96,7 @@ export function ESProvider({ children }: { children: React.ReactNode }) {
   }, [refresh])
 
   const submitApproval = useCallback(async (auditId: string, decision: string, byName: string, byRole: string, comment?: string) => {
-    const res = await fetch('/api/approvals', {
+    const res = await fetch(`${API_BASE}/approvals`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ auditId, decision, byName, byRole, comment }),
     })
@@ -101,13 +105,13 @@ export function ESProvider({ children }: { children: React.ReactNode }) {
   }, [refresh])
 
   const generateReport = useCallback(async (auditId: string) => {
-    const res = await fetch('/api/reports', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ auditId, action: 'generate' }) })
+    const res = await fetch(`${API_BASE}/reports`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ auditId, action: 'generate' }) })
     if (!res.ok) { toast.error('Report generation failed'); return }
     await refresh()
   }, [refresh])
 
   const finalizeReport = useCallback(async (auditId: string) => {
-    const res = await fetch('/api/reports', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ auditId, action: 'finalize' }) })
+    const res = await fetch(`${API_BASE}/reports`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ auditId, action: 'finalize' }) })
     if (!res.ok) { toast.error('Finalization failed'); return }
     await refresh()
   }, [refresh])

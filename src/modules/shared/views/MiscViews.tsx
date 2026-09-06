@@ -2,9 +2,9 @@
 
 import React, { useMemo, useState } from 'react'
 import { Building2, MapPin, ChevronRight, ChevronDown, Factory, Landmark, Warehouse, DoorOpen, Layers, Grid3X3, Boxes, ImageIcon, FileText, History } from 'lucide-react'
-import { useES } from '../store'
-import { Avatar, Pill, EvidenceThumb, EmptyState, MicroLabel, Bar as ProgressBar } from '../ui-bits'
-import { fmtDate, fmtDateTime, auditStatusMeta } from '@/lib/es-format'
+import { useES } from '@/modules/shared/store'
+import { Avatar, Pill, EvidenceThumb, EmptyState, MicroLabel, Bar as ProgressBar } from '@/modules/shared/ui-bits'
+import { fmtDate, fmtDateTime, auditStatusMeta } from '@/modules/shared/format'
 
 // ─── Clients ─────────────────────────────────────────────────────
 export function ClientsView() {

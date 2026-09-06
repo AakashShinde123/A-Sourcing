@@ -8,8 +8,8 @@ import {
   ScanLine, Camera, MapPin, MapPinOff, CheckCircle2, XCircle, AlertTriangle, ArrowLeft,
   Search, PackageSearch, Plus, Loader2, RefreshCw, Clock, FileText,
 } from 'lucide-react'
-import { useES } from '../store'
-import type { Asset, QueueOp } from '@/lib/es-types'
+import { useES } from '@/modules/shared/store'
+import type { Asset, QueueOp } from '@/modules/shared/types'
 
 export type ScanIntent = { type: 'scan' } | { type: 'search' } | { type: 'discovery' }
 

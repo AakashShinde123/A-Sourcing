@@ -1,5 +1,5 @@
-import { EasySourcingApp } from '@/components/es/App'
+import { HubApp } from '@/modules/hub/HubApp'
 
 export default function Page() {
-  return <EasySourcingApp />
+  return <HubApp />
 }
