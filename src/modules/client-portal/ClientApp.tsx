@@ -39,10 +39,10 @@ function ClientNav({ clientCode, pendingApprovals, onNavigate }: { clientCode: s
           <button key={it.id} onClick={() => { setClientView(it.id); onNavigate?.() }}
             className={cn('relative flex min-h-11 w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition',
               clientView === it.id
-                ? 'bg-gradient-to-r from-teal-500/[0.14] to-teal-500/[0.04] text-teal-900 ring-1 ring-inset ring-teal-200/80'
-                : 'text-zinc-500 hover:bg-zinc-50 hover:text-zinc-800')}>
-            {clientView === it.id && <span className="absolute -left-3 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-gradient-to-b from-teal-400 to-cyan-500 shadow-[0_0_12px_rgba(20,184,166,0.7)]" aria-hidden />}
-            <span className={cn('transition', clientView === it.id ? 'text-teal-600' : 'text-zinc-400')}>{it.icon}</span>
+                ? 'bg-gradient-to-r from-amber-100/90 to-amber-50/40 text-amber-900 ring-1 ring-inset ring-amber-300/60'
+                : 'text-zinc-500 hover:bg-amber-50/60 hover:text-zinc-800')}>
+            {clientView === it.id && <span className="absolute -left-3 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-gradient-to-b from-amber-400 to-orange-500 shadow-[0_0_10px_rgba(245,158,11,0.6)]" aria-hidden />}
+            <span className={cn('transition', clientView === it.id ? 'text-amber-600' : 'text-zinc-400')}>{it.icon}</span>
             <span className="flex-1 text-left">{it.label}</span>
             {it.id === 'approvals' && pendingApprovals > 0 && <span className="rounded-full bg-gradient-to-r from-orange-500 to-amber-500 px-1.5 py-px text-[10px] font-bold text-white shadow-[0_2px_8px_rgba(249,115,22,0.45)]">{pendingApprovals}</span>}
           </button>
@@ -70,15 +70,15 @@ export function ClientApp() {
   const pendingApprovals = audits.filter((a) => a.status === 'client_review').length
 
   return (
-    <div className="flex h-dvh bg-zinc-100 text-zinc-900 sm:h-screen">
+    <div className="flex h-dvh bg-[#f7f4ee] text-zinc-900 sm:h-screen">
       {/* Desktop sidebar */}
-      <aside className="relative hidden w-60 shrink-0 flex-col border-r border-zinc-200/80 bg-white md:flex">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-teal-500/[0.07] to-transparent" aria-hidden />
+      <aside className="relative hidden w-60 shrink-0 flex-col border-r border-amber-900/[0.08] bg-white md:flex">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-amber-100/70 via-orange-50/40 to-transparent" aria-hidden />
         <div className="relative flex items-center gap-2.5 px-5 pb-4 pt-5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-teal-400 to-cyan-600 text-white shadow-[0_4px_14px_-4px_rgba(20,184,166,0.7)] ring-1 ring-black/5"><QrCode className="h-4.5 w-4.5" /></span>
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-[0_4px_14px_-4px_rgba(234,88,12,0.7)] ring-1 ring-black/5"><QrCode className="h-4.5 w-4.5" /></span>
           <div className="min-w-0">
-            <div className="truncate text-[13px] font-bold tracking-tight text-zinc-900">{client.code} Portal</div>
-            <div className="truncate text-[9.5px] font-bold uppercase tracking-[0.14em] text-teal-600/90">{client.name}</div>
+            <div className="font-display truncate text-[13px] font-bold tracking-tight text-zinc-900">{client.code} Portal</div>
+            <div className="truncate text-[9.5px] font-bold uppercase tracking-[0.14em] text-amber-600">{client.name}</div>
           </div>
         </div>
         <ClientNav clientCode={client.code} pendingApprovals={pendingApprovals} />
@@ -93,10 +93,10 @@ export function ClientApp() {
             navOpen ? 'translate-x-0' : '-translate-x-full')}>
           <div className="flex items-center justify-between px-5 pb-3 pt-5">
             <div className="flex min-w-0 items-center gap-2.5">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-400 to-cyan-600 text-white shadow-[0_4px_14px_-4px_rgba(20,184,166,0.7)]"><QrCode className="h-4.5 w-4.5" /></span>
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-[0_4px_14px_-4px_rgba(234,88,12,0.7)]"><QrCode className="h-4.5 w-4.5" /></span>
               <div className="min-w-0">
-                <div className="truncate text-[13px] font-bold tracking-tight text-zinc-900">{client.code} Portal</div>
-                <div className="truncate text-[9.5px] font-bold uppercase tracking-[0.14em] text-teal-600/90">{client.name}</div>
+                <div className="font-display truncate text-[13px] font-bold tracking-tight text-zinc-900">{client.code} Portal</div>
+                <div className="truncate text-[9.5px] font-bold uppercase tracking-[0.14em] text-amber-600">{client.name}</div>
               </div>
             </div>
             <button onClick={() => setNavOpen(false)} aria-label="Close navigation menu"
@@ -116,7 +116,7 @@ export function ClientApp() {
               <Menu className="h-5 w-5" />
             </button>
             <button onClick={() => setSurface('landing')} aria-label="Back to all surfaces" className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-lg transition hover:bg-zinc-100 md:flex">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-teal-400 to-cyan-600 shadow-[0_2px_8px_rgba(20,184,166,0.4)]"><QrCode className="h-4 w-4 text-white" /></span>
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 shadow-[0_2px_10px_rgba(234,88,12,0.45)]"><QrCode className="h-4 w-4 text-white" /></span>
             </button>
             <div className="hidden items-center gap-2 text-[13px] text-zinc-400 md:flex">
               <span>{client.name}</span><span>/</span>
@@ -148,7 +148,7 @@ export function ClientApp() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto bg-gradient-to-b from-zinc-50/60 via-zinc-100/40 to-zinc-100 p-3 sm:p-4 lg:p-6">
+        <main className="flex-1 overflow-y-auto bg-gradient-to-b from-amber-50/40 via-[#f7f5f0] to-[#f4f0e8] p-3 sm:p-4 lg:p-6">
           {clientView === 'dashboard' && <ClientDashboard />}
           {clientView === 'audits' && <AuditsView clientIdScope={client.id} />}
           {clientView === 'assets' && <AssetsTable clientIdScope={client.id} title={`${client.code} Asset Register`} />}
@@ -177,10 +177,11 @@ function ClientDashboard() {
   return (
     <div className="space-y-5">
       <div className="card relative overflow-hidden p-5">
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-teal-500/[0.08] via-transparent to-amber-400/[0.06]" aria-hidden />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-amber-100/60 via-orange-50/40 to-teal-50/50" aria-hidden />
+        <div className="pointer-events-none absolute -right-10 -top-16 h-40 w-40 rounded-full bg-gradient-to-br from-amber-300/40 to-orange-200/30 blur-3xl" aria-hidden />
         <div className="relative">
-          <h1 className="text-lg font-bold tracking-tight text-zinc-900">{client.name}</h1>
-          <p className="text-[13px] text-zinc-500">Your organization&rsquo;s verification universe — nothing internal is visible here.</p>
+          <h1 className="font-display text-xl font-bold tracking-tight text-zinc-900">{client.name}</h1>
+          <p className="text-[13px] text-zinc-600">Your organization&rsquo;s verification universe — nothing internal is visible here.</p>
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
@@ -193,7 +194,7 @@ function ClientDashboard() {
       {hero && (
         <div className="card p-4">
           <SectionHeader title="Audit progress" sub={`${hero.code} · ${hero.name} · ${auditStatusMeta[hero.status].label}`} right={
-            <button onClick={() => { openAudit(hero.id); setClientView('audits') }} className="text-[13px] font-medium text-teal-700 hover:text-teal-800">Open audit →</button>
+            <button onClick={() => { openAudit(hero.id); setClientView('audits') }} className="text-[13px] font-bold text-amber-700 transition hover:text-orange-600">Open audit →</button>
           } />
           <div className="mt-3 flex items-end gap-2">
             <span className="text-3xl font-semibold tabular-nums text-zinc-900">{hero.progress}%</span>
@@ -213,7 +214,7 @@ function ClientDashboard() {
 
       <div className="grid gap-4 xl:grid-cols-2">
         <div className="card p-4">
-          <SectionHeader title="Recent exceptions" right={<button onClick={() => setClientView('exceptions')} className="text-[13px] font-medium text-teal-700">All →</button>} />
+          <SectionHeader title="Recent exceptions" right={<button onClick={() => setClientView('exceptions')} className="text-[13px] font-bold text-amber-700 transition hover:text-orange-600">All →</button>} />
           <div className="mt-2 space-y-1.5">
             {exceptions.slice(0, 5).map((e) => (
               <div key={e.id} className="flex items-center justify-between gap-2 rounded-lg bg-zinc-50/70 px-2.5 py-2">
@@ -225,7 +226,7 @@ function ClientDashboard() {
           </div>
         </div>
         <div className="card p-4">
-          <SectionHeader title="Latest reports" right={<button onClick={() => setClientView('reports')} className="text-[13px] font-medium text-teal-700">All →</button>} />
+          <SectionHeader title="Latest reports" right={<button onClick={() => setClientView('reports')} className="text-[13px] font-bold text-amber-700 transition hover:text-orange-600">All →</button>} />
           <div className="mt-2 space-y-1.5">
             {world!.reports.filter((r) => r.clientId === client.id).slice(0, 5).map((r) => (
               <div key={r.id} className="flex items-center justify-between rounded-lg bg-zinc-50/70 px-2.5 py-2 text-[13px]">
@@ -276,15 +277,15 @@ function ApprovalsView({ canApprove }: { canApprove: boolean }) {
               <h3 className="mt-0.5 text-[15px] font-semibold text-zinc-900">{a.name}</h3>
               <p className="text-xs text-zinc-500">{a.verifiedAssets}/{a.totalInScope} assets verified · {a.openExceptions} open exceptions · {a.locationsLabel}</p>
             </div>
-            <button onClick={() => { openAudit(a.id); setClientView('audits') }} className="text-[13px] font-medium text-teal-700">Inspect details →</button>
+            <button onClick={() => { openAudit(a.id); setClientView('audits') }} className="text-[13px] font-bold text-amber-700 transition hover:text-orange-600">Inspect details →</button>
           </div>
           {canApprove ? (
             <div className="mt-3">
               <textarea value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Comment for the EasySourcing team (optional)…"
-                className="min-h-[64px] w-full rounded-lg border border-orange-200 bg-white p-2.5 text-[13px] outline-none placeholder:text-zinc-400 focus:border-teal-400" />
+                className="min-h-[64px] w-full rounded-lg border border-orange-200 bg-white p-2.5 text-[13px] outline-none placeholder:text-zinc-400 focus:border-amber-400 focus:shadow-[0_0_0_3px_rgba(245,158,11,0.12)]" />
               <div className="mt-2 flex gap-2">
-                <button onClick={() => decide(a.id, 'approved')} className="rounded-lg bg-emerald-600 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-emerald-700">Approve audit</button>
-                <button onClick={() => decide(a.id, 'changes_requested')} className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-[13px] font-medium text-zinc-700 transition hover:border-zinc-400">Request changes</button>
+                <button onClick={() => decide(a.id, 'approved')} className="rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 px-4 py-2 text-[13px] font-bold text-white shadow-[0_4px_14px_-4px_rgba(16,185,129,0.6)] transition hover:brightness-105 active:scale-[0.98]">Approve audit</button>
+                <button onClick={() => decide(a.id, 'changes_requested')} className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-[13px] font-semibold text-zinc-700 transition hover:border-amber-400 hover:text-amber-700">Request changes</button>
               </div>
             </div>
           ) : (

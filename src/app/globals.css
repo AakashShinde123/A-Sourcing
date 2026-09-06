@@ -143,42 +143,49 @@
 }
 
 /* ════════════════════════════════════════════════════════════════
-   EasySourcing Design System 3.0 — premium surfaces & motion
+   EasySourcing Design System 4.0 — "Daylight Vivid"
+   Light-only, colorful, premium. No dark mode anywhere.
    ════════════════════════════════════════════════════════════════ */
 
 ::selection {
-  background: rgba(16, 185, 129, 0.25);
+  background: rgba(16, 185, 129, 0.22);
 }
 
-/* ── Premium light card (portals) ─────────────────────────────── */
+/* ── Display font helper (Space Grotesk via layout.tsx) ───────── */
+.font-display {
+  font-family: var(--font-space), var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* ── Card system ───────────────────────────────────────────────── */
 .card {
   border-radius: 1rem;
-  border: 1px solid rgba(228, 228, 231, 0.7);
+  border: 1px solid rgba(226, 232, 224, 0.9);
   background: #fff;
   box-shadow:
-    0 1px 2px rgba(16, 24, 40, 0.04),
-    0 1px 3px rgba(16, 24, 40, 0.05);
+    0 1px 2px rgba(6, 44, 32, 0.04),
+    0 2px 6px -1px rgba(6, 44, 32, 0.05);
 }
 .card-hover {
   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s, border-color 0.25s;
 }
 .card-hover:hover {
-  transform: translateY(-2px);
-  border-color: rgba(212, 212, 216, 1);
+  transform: translateY(-3px);
+  border-color: rgba(167, 216, 190, 0.9);
   box-shadow:
-    0 4px 8px -2px rgba(16, 24, 40, 0.06),
-    0 12px 24px -4px rgba(16, 24, 40, 0.1);
+    0 4px 10px -2px rgba(6, 44, 32, 0.06),
+    0 16px 32px -8px rgba(5, 150, 105, 0.16);
 }
 
-/* ── Dark glass panel (hub / mobile) ──────────────────────────── */
+/* ── Light glass (headers / floating chips) ────────────────────── */
 .glass {
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018));
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(13, 84, 60, 0.08);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  box-shadow: 0 1px 2px rgba(6, 44, 32, 0.05);
 }
 
-/* ── Aurora hero background (dark surfaces) ───────────────────── */
+/* ── Daylight mesh — vivid color washes on light canvas ────────── */
 .bg-aurora {
   position: relative;
 }
@@ -188,19 +195,26 @@
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(52rem 30rem at 18% -8%, rgba(16, 185, 129, 0.16), transparent 60%),
-    radial-gradient(44rem 28rem at 84% -12%, rgba(139, 92, 246, 0.12), transparent 62%),
-    radial-gradient(38rem 26rem at 55% 118%, rgba(20, 184, 166, 0.1), transparent 60%);
+    radial-gradient(52rem 32rem at 12% -6%, rgba(52, 211, 153, 0.2), transparent 58%),
+    radial-gradient(44rem 30rem at 88% -10%, rgba(167, 139, 250, 0.16), transparent 60%),
+    radial-gradient(40rem 28rem at 78% 108%, rgba(94, 234, 212, 0.16), transparent 58%),
+    radial-gradient(36rem 26rem at 8% 96%, rgba(253, 224, 71, 0.12), transparent 55%);
 }
 
-/* ── Blueprint grid overlay, fades out downward ───────────────── */
+/* violet-leaning variant for architecture / planner */
+.bg-aurora-violet::before {
+  background:
+    radial-gradient(52rem 32rem at 14% -6%, rgba(167, 139, 250, 0.2), transparent 58%),
+    radial-gradient(44rem 30rem at 86% -10%, rgba(232, 121, 249, 0.12), transparent 60%),
+    radial-gradient(40rem 28rem at 80% 108%, rgba(52, 211, 153, 0.15), transparent 58%);
+}
+
+/* ── Light dot grid, fades downward ────────────────────────────── */
 .bg-grid-fade {
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
-  background-size: 44px 44px;
-  -webkit-mask-image: radial-gradient(ellipse 90% 68% at 50% 0%, black 25%, transparent 78%);
-  mask-image: radial-gradient(ellipse 90% 68% at 50% 0%, black 25%, transparent 78%);
+  background-image: radial-gradient(rgba(5, 150, 105, 0.16) 1.1px, transparent 1.1px);
+  background-size: 24px 24px;
+  -webkit-mask-image: radial-gradient(ellipse 85% 62% at 50% 0%, black 20%, transparent 75%);
+  mask-image: radial-gradient(ellipse 85% 62% at 50% 0%, black 20%, transparent 75%);
 }
 
 /* ── Film grain — kills flat "solid color" look ────────────────── */
@@ -209,27 +223,36 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0.05;
+  opacity: 0.035;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
 }
 
-/* ── Gradient display text ────────────────────────────────────── */
+/* ── Gradient display text (vivid on light) ────────────────────── */
 .text-gradient {
-  background: linear-gradient(115deg, #d1fae5 0%, #6ee7b7 35%, #34d399 62%, #5eead4 88%);
+  background: linear-gradient(112deg, #059669 0%, #0d9488 38%, #0891b2 72%, #2563eb 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
-.text-gradient-warm {
-  background: linear-gradient(115deg, #ffffff 15%, #fde68a 55%, #fcd34d 85%);
+.text-gradient-violet {
+  background: linear-gradient(112deg, #7c3aed 0%, #c026d3 55%, #db2777 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.text-gradient-sunset {
+  background: linear-gradient(112deg, #d97706 0%, #ea580c 55%, #e11d48 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 
-/* ── Glow ring used on logo chips / hero buttons ───────────────── */
+/* ── Glow ring used on logo chips ──────────────────────────────── */
 .glow-emerald {
-  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.35), 0 8px 28px -6px rgba(16, 185, 129, 0.5);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35) inset, 0 8px 24px -6px rgba(16, 185, 129, 0.55);
+}
+.glow-violet {
+  box-shadow: 0 8px 24px -6px rgba(139, 92, 246, 0.5);
 }
 
 /* ── Motion ───────────────────────────────────────────────────── */
@@ -280,7 +303,7 @@
   left: 10%;
   right: 10%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  background: linear-gradient(90deg, transparent, rgba(5, 150, 105, 0.35), transparent);
 }
 
 /* refined scrollbars for dense enterprise tables */

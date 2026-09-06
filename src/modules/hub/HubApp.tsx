@@ -19,13 +19,13 @@ function SurfaceRouter() {
 
   if (loading) {
     return (
-      <div className="relative flex min-h-screen flex-col items-center justify-center gap-4 overflow-hidden bg-zinc-950 text-zinc-300">
+      <div className="relative flex min-h-screen flex-col items-center justify-center gap-4 overflow-hidden bg-[#f6f8f4] text-zinc-700">
         <div className="bg-aurora pointer-events-none absolute inset-0" aria-hidden />
-        <span className="glow-emerald relative flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-600">
+        <span className="glow-emerald relative flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 via-teal-500 to-cyan-600">
           <QrCode className="h-7 w-7 text-white" />
         </span>
         <div className="relative flex items-center gap-2 text-sm font-medium">
-          <Loader2 className="h-4 w-4 animate-spin text-emerald-400" /> Loading EasySourcing platform…
+          <Loader2 className="h-4 w-4 animate-spin text-emerald-600" /> Loading EasySourcing platform…
         </div>
       </div>
     )

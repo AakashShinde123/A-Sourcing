@@ -179,6 +179,18 @@ const UNIT_BASE: Record<string, { name: string; iconKey: IconKey; accent: Accent
   'core-api': { name: 'Core API', iconKey: 'boxes', accent: 'violet' },
 }
 
+/* stage accent → active-card treatment (vivid on light) */
+const STAGE_ACTIVE: Record<StageId, string> = {
+  launch: 'bg-gradient-to-b from-emerald-50 to-white ring-2 ring-emerald-500/50 shadow-[0_20px_48px_-16px_rgba(5,150,105,0.35)]',
+  scale: 'bg-gradient-to-b from-violet-50 to-white ring-2 ring-violet-500/50 shadow-[0_20px_48px_-16px_rgba(139,92,246,0.35)]',
+  expansion: 'bg-gradient-to-b from-amber-50 to-white ring-2 ring-amber-500/50 shadow-[0_20px_48px_-16px_rgba(234,88,12,0.35)]',
+}
+const STAGE_GRAD: Record<StageId, string> = {
+  launch: 'from-emerald-400 to-teal-600',
+  scale: 'from-violet-400 to-fuchsia-600',
+  expansion: 'from-amber-400 to-orange-500',
+}
+
 export function DeployPlanner() {
   const { setSurface } = useES()
   const [team, setTeam] = useState(TEAM_TODAY)
@@ -192,29 +204,29 @@ export function DeployPlanner() {
   const a = ACCENT_CLS[stage.accent]
 
   return (
-    <div className="relative isolate min-h-screen overflow-x-clip bg-zinc-950 text-zinc-100">
+    <div className="relative isolate min-h-screen overflow-x-clip bg-[#f7f6fb] text-zinc-900">
       <div className="pointer-events-none absolute inset-0 -z-10" aria-hidden>
-        <div className="bg-aurora noise absolute inset-0" />
+        <div className="bg-aurora-violet noise absolute inset-0" />
       </div>
       {/* Header */}
-      <header className="sticky top-0 z-30 border-b border-white/5 bg-zinc-950/85 backdrop-blur">
+      <header className="sticky top-0 z-30 border-b border-violet-100/80 bg-white/75 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 px-4 lg:px-6">
           <div className="flex items-center gap-3">
             <button onClick={() => setSurface('landing')} aria-label="Back to hub"
-              className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5 ring-1 ring-white/10 transition hover:bg-white/10">
-              <ArrowLeft className="h-4 w-4 text-zinc-300" />
+              className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm ring-1 ring-zinc-200 transition hover:bg-zinc-50 hover:ring-violet-300">
+              <ArrowLeft className="h-4 w-4 text-zinc-600" />
             </button>
             <div>
-              <div className="text-[13px] font-bold tracking-tight">Deployment Planner</div>
-              <div className="text-[10px] uppercase tracking-widest text-zinc-500">Where each standalone module runs, by team size</div>
+              <div className="font-display text-[13px] font-bold tracking-tight">Deployment Planner</div>
+              <div className="text-[10px] font-semibold uppercase tracking-widest text-violet-500">Where each standalone module runs, by team size</div>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className="hidden items-center gap-1.5 rounded-full bg-white/5 px-2.5 py-1 text-[11px] font-medium text-zinc-300 ring-1 ring-white/10 sm:inline-flex">
-              <Users className="h-3 w-3 text-zinc-400" /> {team} {team === 1 ? 'person' : 'people'} · {stage.name} stage
+            <span className="hidden items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-700 shadow-sm ring-1 ring-zinc-200 sm:inline-flex">
+              <Users className="h-3 w-3 text-violet-500" /> {team} {team === 1 ? 'person' : 'people'} · {stage.name} stage
             </span>
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500/15 ring-1 ring-violet-500/25">
-              <Rocket className="h-3.5 w-3.5 text-violet-300" />
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-violet-400 to-fuchsia-600 shadow-[0_6px_16px_-6px_rgba(147,51,234,0.6)]">
+              <Rocket className="h-3.5 w-3.5 text-white" />
             </span>
           </div>
         </div>
@@ -223,34 +235,34 @@ export function DeployPlanner() {
       <main className="mx-auto max-w-7xl px-4 pb-16 lg:px-6">
         {/* Intro + slider */}
         <div className="pt-8">
-          <div className="inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-3.5 py-1.5 text-[12px] font-semibold text-violet-300">
-            <Compass /> Sized for today · ready for tomorrow
+          <div className="inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-1.5 text-[12px] font-semibold text-violet-700 shadow-[0_8px_28px_-10px_rgba(139,92,246,0.5)] ring-1 ring-violet-200">
+            <Compass className="h-3.5 w-3.5" /> Sized for today · ready for tomorrow
           </div>
-          <h1 className="mt-4 max-w-3xl text-2xl font-bold tracking-tight sm:text-3xl">
-            You are {TEAM_TODAY} people now. Drag the slider to where you will be — the platform plan changes before you do.
+          <h1 className="font-display mt-4 max-w-3xl text-2xl font-bold tracking-tight sm:text-[2rem] sm:leading-tight">
+            You are {TEAM_TODAY} people now. Drag the slider — <span className="text-gradient-violet">the platform plan changes before you do.</span>
           </h1>
-          <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-zinc-400">
+          <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-zinc-600">
             The five deployable units never change — same images, same manifests, same REST contract.
-            Only <span className="font-medium text-zinc-200">where they run</span> changes. That is the point of the
+            Only <span className="font-semibold text-zinc-900">where they run</span> changes. That is the point of the
             standalone-but-connected architecture: growth is an ops decision, not a rewrite.
           </p>
 
           {/* Slider card */}
-          <div className="mt-6 rounded-2xl border border-white/5 bg-white/[0.02] p-5 sm:p-6">
+          <div className="mt-6 rounded-2xl bg-white p-5 shadow-[0_20px_50px_-24px_rgba(139,92,246,0.4)] ring-1 ring-violet-500/15 sm:p-6">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
-                <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Team size (people building & running the platform)</div>
+                <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Team size (people building &amp; running the platform)</div>
                 <div className="mt-1 flex items-baseline gap-2">
-                  <span className="text-4xl font-bold tabular-nums tracking-tight text-white">{team}</span>
+                  <span className="font-display text-4xl font-bold tabular-nums tracking-tight text-zinc-900">{team}</span>
                   <span className="text-[12px] text-zinc-500">members in the company</span>
                   {team === TEAM_TODAY && (
-                    <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-300 ring-1 ring-emerald-500/20">you · today</span>
+                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700 ring-1 ring-emerald-500/25">you · today</span>
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-2 text-[12px] text-zinc-400">
-                <TrendingUp className="h-3.5 w-3.5 text-violet-300" />
-                auto-recommends <span className="font-semibold text-zinc-100">{autoStage.name}</span>
+              <div className="flex items-center gap-2 text-[12px] text-zinc-600">
+                <TrendingUp className="h-3.5 w-3.5 text-violet-500" />
+                auto-recommends <span className="font-bold text-zinc-900">{autoStage.name}</span>
               </div>
             </div>
             <input
@@ -261,10 +273,10 @@ export function DeployPlanner() {
               value={team}
               onChange={(e) => { const v = Number(e.target.value); setTeam(v); setPinned(null) }}
               aria-label="Team size"
-              className="mt-5 w-full accent-violet-500"
+              className="mt-5 w-full accent-violet-600"
             />
             {/* tick marks at true linear positions for 15 / 50 (scale 2→120) */}
-            <div className="relative mt-1 h-4 text-[9.5px] font-medium uppercase tracking-wider text-zinc-600">
+            <div className="relative mt-1 h-4 text-[9.5px] font-semibold uppercase tracking-wider text-zinc-400">
               <span className="absolute left-0">2</span>
               <span className="absolute -translate-x-1/2" style={{ left: `${((15 - 2) / 118) * 100}%` }}>15</span>
               <span className="absolute -translate-x-1/2" style={{ left: `${((50 - 2) / 118) * 100}%` }}>50</span>
@@ -282,26 +294,24 @@ export function DeployPlanner() {
             return (
               <button key={s.id} onClick={() => setPinned(s.id)} aria-pressed={active}
                 className={cn(
-                  'relative flex flex-col rounded-2xl border p-5 text-left transition',
+                  'relative flex flex-col rounded-2xl p-5 text-left transition-all duration-300',
                   active
-                    ? 'border-white/15 bg-white/[0.05] shadow-lg'
-                    : 'border-white/5 bg-white/[0.02] hover:bg-white/[0.04] hover:ring-1 hover:ring-white/10',
+                    ? STAGE_ACTIVE[s.id]
+                    : 'bg-white shadow-sm ring-1 ring-zinc-900/[0.06] hover:-translate-y-1 hover:shadow-[0_16px_40px_-16px_rgba(6,78,59,0.25)]',
                 )}>
                 <div className="flex items-center justify-between">
-                  <span className={cn('flex h-9 w-9 items-center justify-center rounded-xl ring-1', sa.soft, sa.ring)}>
-                    <span className={cn('font-mono text-[13px] font-bold', sa.text)}>{s.n}</span>
-                  </span>
+                  <span className={cn('flex h-9 w-9 items-center justify-center rounded-xl font-mono text-[13px] font-bold text-white shadow-md bg-gradient-to-br', STAGE_GRAD[s.id])}>{s.n}</span>
                   <span className="flex items-center gap-1.5">
                     {auto && (
-                      <span className="rounded-full bg-white/5 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-zinc-400">fits you</span>
+                      <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-zinc-600 ring-1 ring-zinc-200">fits you</span>
                     )}
-                    {active && <BadgeCheck className={cn('h-4 w-4', sa.text)} />}
+                    {active && <BadgeCheck className={cn('h-4.5 w-4.5', sa.text)} />}
                   </span>
                 </div>
-                <div className="mt-3 text-[15px] font-bold tracking-tight text-white">{s.name}</div>
+                <div className="font-display mt-3 text-[15px] font-bold tracking-tight text-zinc-900">{s.name}</div>
                 <div className="text-[11px] font-medium text-zinc-500">{s.range}</div>
-                <p className="mt-2 text-[12px] leading-relaxed text-zinc-400">{s.headline}</p>
-                <div className="mt-3 flex items-center gap-1.5 border-t border-white/5 pt-2.5 text-[11px] font-semibold text-zinc-300">
+                <p className="mt-2 flex-1 text-[12px] leading-relaxed text-zinc-600">{s.headline}</p>
+                <div className="mt-3 flex items-center gap-1.5 border-t border-zinc-100 pt-2.5 text-[11px] font-bold text-zinc-800">
                   <Wallet className={cn('h-3.5 w-3.5', sa.text)} /> {s.cost}
                 </div>
               </button>
@@ -312,37 +322,37 @@ export function DeployPlanner() {
         {/* Detail — selected stage */}
         <div className="mt-8 grid gap-4 lg:grid-cols-3">
           {/* Stack */}
-          <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-5 lg:col-span-2">
+          <div className="rounded-2xl bg-white p-5 shadow-[0_16px_44px_-20px_rgba(6,78,59,0.25)] ring-1 ring-zinc-900/[0.06] lg:col-span-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Stage {stage.n} · the stack</div>
-                <h2 className="mt-1 text-lg font-bold tracking-tight">{stage.headline}</h2>
+                <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Stage {stage.n} · the stack</div>
+                <h2 className="font-display mt-1 text-lg font-bold tracking-tight">{stage.headline}</h2>
               </div>
               <span className={cn('rounded-full px-3 py-1 text-[11px] font-bold ring-1', a.soft, a.text, a.ring)}>{stage.cost}</span>
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               {stage.stack.map((row) => (
-                <div key={row.label} className="rounded-xl bg-white/[0.03] p-4 ring-1 ring-white/5">
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">{row.label}</div>
-                  <div className="mt-1 text-[13px] font-semibold text-zinc-100">{row.value}</div>
+                <div key={row.label} className="rounded-xl bg-gradient-to-b from-zinc-50 to-white p-4 ring-1 ring-zinc-200/70">
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">{row.label}</div>
+                  <div className="mt-1 text-[13px] font-semibold text-zinc-900">{row.value}</div>
                   <p className="mt-1.5 text-[11.5px] leading-relaxed text-zinc-500">{row.why}</p>
                 </div>
               ))}
             </div>
-            <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl bg-white/[0.03] px-4 py-3 text-[12px] ring-1 ring-white/5">
-              <span className="flex items-center gap-2 text-zinc-300"><Wallet className={cn('h-3.5 w-3.5', a.text)} /> <span className="text-zinc-500">basis:</span> {stage.costBasis}</span>
-              <span className="flex items-center gap-2 text-zinc-300"><Clock className="h-3.5 w-3.5 text-zinc-400" /> <span className="text-zinc-500">ops:</span> {stage.ops}</span>
+            <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl bg-zinc-50 px-4 py-3 text-[12px] ring-1 ring-zinc-200/70">
+              <span className="flex items-center gap-2 text-zinc-700"><Wallet className={cn('h-3.5 w-3.5', a.text)} /> <span className="font-semibold text-zinc-500">basis:</span> {stage.costBasis}</span>
+              <span className="flex items-center gap-2 text-zinc-700"><Clock className="h-3.5 w-3.5 text-zinc-400" /> <span className="font-semibold text-zinc-500">ops:</span> {stage.ops}</span>
             </div>
             {stage.free && (
-              <div className="mt-4 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] p-4">
-                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-emerald-300/90">
-                  <Sparkles className="h-3.5 w-3.5" /> Starting phase? Start at ₹0 — free tiers that fit this stage
+              <div className="mt-4 rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50/50 p-4">
+                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-emerald-700">
+                  <Sparkles className="h-3.5 w-3.5 text-amber-500" /> Starting phase? Start at ₹0 — free tiers that fit this stage
                 </div>
                 <div className="mt-2.5 grid gap-2 md:grid-cols-2">
                   {stage.free.map((f) => (
-                    <div key={f.label} className="rounded-lg bg-white/[0.03] p-3 ring-1 ring-white/5">
-                      <div className="text-[12px] font-semibold text-zinc-100">{f.label}</div>
-                      <p className="mt-0.5 text-[11.5px] leading-relaxed text-zinc-500">{f.detail}</p>
+                    <div key={f.label} className="rounded-lg bg-white/90 p-3 ring-1 ring-emerald-200/70">
+                      <div className="text-[12px] font-bold text-emerald-900">{f.label}</div>
+                      <p className="mt-0.5 text-[11.5px] leading-relaxed text-zinc-600">{f.detail}</p>
                     </div>
                   ))}
                 </div>
@@ -352,62 +362,62 @@ export function DeployPlanner() {
 
           {/* Migration triggers + avoid */}
           <div className="flex flex-col gap-4">
-            <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-5">
-              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+            <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-900/[0.06]">
+              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-zinc-400">
                 <MoveRight className="h-3.5 w-3.5" /> Move to stage {stage.n + 1} when…
               </div>
               <ul className="mt-3 space-y-2.5">
                 {stage.triggers.map((t) => (
-                  <li key={t} className="flex gap-2.5 text-[12px] leading-relaxed text-zinc-400">
+                  <li key={t} className="flex gap-2.5 text-[12px] leading-relaxed text-zinc-600">
                     <CircleDot className={cn('mt-0.5 h-3 w-3 shrink-0', a.text)} /> {t}
                   </li>
                 ))}
               </ul>
             </div>
-            <div className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.06] p-5">
-              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-amber-300/90">
+            <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50/60 p-5">
+              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-amber-700">
                 <AlertTriangle className="h-3.5 w-3.5" /> Do not skip ahead
               </div>
-              <div className="mt-2 text-[13px] font-semibold text-amber-200">{stage.avoid.what}</div>
-              <p className="mt-1.5 text-[11.5px] leading-relaxed text-amber-100/70">{stage.avoid.why}</p>
+              <div className="mt-2 text-[13px] font-bold text-amber-900">{stage.avoid.what}</div>
+              <p className="mt-1.5 text-[11.5px] leading-relaxed text-amber-800/80">{stage.avoid.why}</p>
             </div>
           </div>
         </div>
 
         {/* Unit placement table */}
-        <div className="mt-8 overflow-hidden rounded-2xl border border-white/5 bg-white/[0.02]">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/5 px-5 py-4">
+        <div className="mt-8 overflow-hidden rounded-2xl bg-white shadow-[0_16px_44px_-20px_rgba(6,78,59,0.25)] ring-1 ring-zinc-900/[0.06]">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 bg-gradient-to-r from-violet-50/60 to-transparent px-5 py-4">
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Stage {stage.n} placement</div>
-              <h2 className="mt-0.5 text-[15px] font-bold tracking-tight">Where each of the five deployable units runs</h2>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Stage {stage.n} placement</div>
+              <h2 className="font-display mt-0.5 text-[15px] font-bold tracking-tight">Where each of the five deployable units runs</h2>
             </div>
-            <span className="flex items-center gap-1.5 rounded-full bg-white/5 px-2.5 py-1 text-[10.5px] font-medium text-zinc-400 ring-1 ring-white/10">
-              <ServerCog className="h-3.5 w-3.5 text-zinc-400" /> same images · same manifest · same contract
+            <span className="flex items-center gap-1.5 rounded-full bg-violet-100 px-2.5 py-1 text-[10.5px] font-bold text-violet-700 ring-1 ring-violet-500/20">
+              <ServerCog className="h-3.5 w-3.5" /> same images · same manifest · same contract
             </span>
           </div>
-          <ul className="divide-y divide-white/5">
+          <ul className="divide-y divide-zinc-100">
             {stage.units.map((u) => {
               const Icon = MODULE_ICONS[u.iconKey]
               const ua = ACCENT_CLS[u.accent]
               return (
-                <li key={u.id} className="flex flex-wrap items-center gap-3 px-5 py-3.5 transition hover:bg-white/[0.02]">
-                  <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ring-1', ua.soft, ua.ring)}>
-                    <Icon className={cn('h-4.5 w-4.5', ua.text)} />
+                <li key={u.id} className="flex flex-wrap items-center gap-3 px-5 py-3.5 transition hover:bg-violet-50/40">
+                  <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-md bg-gradient-to-br', ua.solid)}>
+                    <Icon className="h-4.5 w-4.5 text-white" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <div className="text-[13px] font-semibold text-zinc-100">{u.name}</div>
+                    <div className="text-[13px] font-semibold text-zinc-900">{u.name}</div>
                     <div className="truncate font-mono text-[10.5px] text-zinc-500">{u.detail}</div>
                   </div>
-                  <span className="rounded-full bg-white/5 px-3 py-1 text-[11px] font-bold text-zinc-200 ring-1 ring-white/10">{u.host}</span>
+                  <span className="rounded-full bg-gradient-to-r from-zinc-100 to-zinc-50 px-3 py-1 text-[11px] font-bold text-zinc-700 ring-1 ring-zinc-200">{u.host}</span>
                 </li>
               )
             })}
           </ul>
         </div>
 
-        <div className="mt-8 flex flex-col items-center gap-1 text-center text-[10.5px] text-zinc-600">
+        <div className="mt-8 flex flex-col items-center gap-1 text-center text-[10.5px] text-zinc-500">
           <span>Prices are indicative list prices at time of writing (INR, incl. typical $→₹ conversion) — always check the provider&apos;s current pricing page.</span>
-          <span>Switching stages redeploys the same module images — no code changes, only <span className="font-mono text-zinc-500">deploy targets</span> in the manifests move.</span>
+          <span>Switching stages redeploys the same module images — no code changes, only <span className="font-mono text-zinc-600">deploy targets</span> in the manifests move.</span>
         </div>
       </main>
     </div>

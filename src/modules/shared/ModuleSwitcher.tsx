@@ -19,11 +19,13 @@ export const MODULE_ICONS: Record<IconKey, React.ComponentType<{ className?: str
   'qr-code': QrCode,
 }
 
+// Light-theme accent tokens — vivid gradients for icon chips, deep 600-level
+// text for contrast on white. Used by every module's chrome.
 export const ACCENT_CLS: Record<string, { solid: string; soft: string; ring: string; text: string; dot: string }> = {
-  emerald: { solid: 'bg-emerald-500', soft: 'bg-emerald-500/10', ring: 'ring-emerald-500/20', text: 'text-emerald-300', dot: 'bg-emerald-400' },
-  teal: { solid: 'bg-teal-500', soft: 'bg-teal-500/10', ring: 'ring-teal-500/20', text: 'text-teal-300', dot: 'bg-teal-400' },
-  amber: { solid: 'bg-amber-500', soft: 'bg-amber-500/10', ring: 'ring-amber-500/20', text: 'text-amber-300', dot: 'bg-amber-400' },
-  violet: { solid: 'bg-violet-500', soft: 'bg-violet-500/10', ring: 'ring-violet-500/20', text: 'text-violet-300', dot: 'bg-violet-400' },
+  emerald: { solid: 'bg-gradient-to-br from-emerald-400 to-teal-600', soft: 'bg-emerald-100', ring: 'ring-emerald-500/25', text: 'text-emerald-600', dot: 'bg-emerald-500' },
+  teal: { solid: 'bg-gradient-to-br from-teal-400 to-cyan-600', soft: 'bg-teal-100', ring: 'ring-teal-500/25', text: 'text-teal-600', dot: 'bg-teal-500' },
+  amber: { solid: 'bg-gradient-to-br from-amber-400 to-orange-500', soft: 'bg-amber-100', ring: 'ring-amber-500/30', text: 'text-amber-600', dot: 'bg-amber-500' },
+  violet: { solid: 'bg-gradient-to-br from-violet-400 to-fuchsia-600', soft: 'bg-violet-100', ring: 'ring-violet-500/25', text: 'text-violet-600', dot: 'bg-violet-500' },
 }
 
 export function ModuleSwitcher({ current, dark = true, align = 'left', direction = 'down', compact = false }: { current: string; dark?: boolean; align?: 'left' | 'right'; direction?: 'down' | 'up'; compact?: boolean }) {
@@ -46,26 +48,25 @@ export function ModuleSwitcher({ current, dark = true, align = 'left', direction
         aria-expanded={open}
         aria-label="Switch module"
         className={cn(
-          'flex h-9 items-center gap-2 rounded-lg px-2.5 text-[12px] font-semibold transition',
-          dark ? 'bg-white/5 text-zinc-200 ring-1 ring-white/10 hover:bg-white/10' : 'bg-zinc-900 text-white ring-1 ring-black/5 hover:bg-zinc-800',
+          'flex h-9 items-center gap-2 rounded-lg bg-white px-2.5 text-[12px] font-semibold text-zinc-700 shadow-sm ring-1 ring-zinc-200 transition hover:bg-zinc-50 hover:ring-zinc-300',
         )}
       >
-        <Layers className="h-3.5 w-3.5 text-zinc-400" />
+        <Layers className="h-3.5 w-3.5 text-emerald-500" />
         {!compact && <span className="hidden sm:inline">{current}</span>}
-        <ChevronsUpDown className="h-3 w-3 text-zinc-500" />
+        <ChevronsUpDown className="h-3 w-3 text-zinc-400" />
       </button>
 
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden />
           <div className={cn(
-            'absolute z-50 w-80 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900/95 shadow-2xl shadow-black/60 backdrop-blur-xl',
+            'absolute z-50 w-80 overflow-hidden rounded-2xl border border-zinc-200/90 bg-white shadow-2xl shadow-emerald-900/10',
             align === 'left' ? 'left-0' : 'right-0',
             direction === 'down' ? 'top-11' : 'bottom-11',
           )} role="menu">
-            <div className="edge-gradient-top border-b border-white/[0.06] bg-gradient-to-b from-white/[0.04] to-transparent px-3.5 py-2.5">
-              <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400">Standalone modules</div>
-              <div className="mt-0.5 text-[11px] text-zinc-500">Each ships & deploys on its own — connected via the Core API</div>
+            <div className="edge-gradient-top border-b border-zinc-100 bg-gradient-to-b from-emerald-50/80 to-white px-3.5 py-2.5">
+              <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-700">Standalone modules</div>
+              <div className="mt-0.5 text-[11px] text-zinc-500">Each ships &amp; deploys on its own — connected via the Core API</div>
             </div>
             <div className="p-1.5">
               {items.map((it) => {
@@ -76,23 +77,23 @@ export function ModuleSwitcher({ current, dark = true, align = 'left', direction
                   <button key={it.id} role="menuitem"
                     onClick={() => { setOpen(false); setSurface(it.id as 'landing') }}
                     className={cn('flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition',
-                      active ? 'bg-white/[0.06] ring-1 ring-white/[0.08]' : 'hover:bg-white/5')}>
+                      active ? 'bg-emerald-50/80 ring-1 ring-emerald-200/80' : 'hover:bg-zinc-50')}>
                     <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1', a.soft, a.ring)}>
                       <Icon className={cn('h-4 w-4', a.text)} />
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-1.5">
-                        <span className="truncate text-[12.5px] font-semibold text-zinc-100">{it.label}</span>
-                        <span className="shrink-0 rounded bg-white/5 px-1 py-px font-mono text-[9px] text-zinc-500">v{it.version}</span>
+                        <span className="truncate text-[12.5px] font-semibold text-zinc-900">{it.label}</span>
+                        <span className="shrink-0 rounded bg-zinc-100 px-1 py-px font-mono text-[9px] text-zinc-500">v{it.version}</span>
                       </span>
                       <span className="block truncate text-[10.5px] text-zinc-500">{it.note}</span>
                     </span>
-                    {active && <Check className="h-3.5 w-3.5 shrink-0 text-emerald-400" />}
+                    {active && <Check className="h-3.5 w-3.5 shrink-0 text-emerald-600" />}
                   </button>
                 )
               })}
             </div>
-            <div className="border-t border-white/5 px-3.5 py-2 text-[10px] text-zinc-600">
+            <div className="border-t border-zinc-100 bg-zinc-50/60 px-3.5 py-2 text-[10px] text-zinc-500">
               Cross-module calls ride the REST contract — never direct imports.
             </div>
           </div>

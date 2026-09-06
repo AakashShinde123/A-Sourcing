@@ -89,7 +89,7 @@ export const CORE_API_MANIFEST: ModuleManifest = {
 
 /** Convenience lookup used by the Hub and the discovery route */
 export const METHOD_CLS: Record<ApiCall['method'], string> = {
-  GET: 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/20',
-  POST: 'bg-violet-500/10 text-violet-300 ring-violet-500/20',
-  PATCH: 'bg-amber-500/10 text-amber-300 ring-amber-500/20',
+  GET: 'bg-emerald-100 text-emerald-700 ring-emerald-500/25',
+  POST: 'bg-violet-100 text-violet-700 ring-violet-500/25',
+  PATCH: 'bg-amber-100 text-amber-700 ring-amber-500/30',
 }
