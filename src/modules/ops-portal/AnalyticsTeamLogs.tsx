@@ -179,7 +179,8 @@ export function LogsView() {
         <p className="text-[13px] text-zinc-500">WHO · WHAT · WHEN · WHERE — append-only, protected from ordinary modification</p>
       </div>
       <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-        <table className="w-full text-[13px]">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[760px] text-[13px]">
           <thead>
             <tr className="border-b border-zinc-100 bg-zinc-50/70 text-left">
               {['Actor', 'Action', 'Entity', 'Detail', 'When'].map((h) => (
@@ -201,7 +202,8 @@ export function LogsView() {
               </tr>
             ))}
           </tbody>
-        </table>
+          </table>
+        </div>
       </div>
     </div>
   )

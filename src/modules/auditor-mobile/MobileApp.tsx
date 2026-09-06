@@ -64,7 +64,7 @@ export function MobileApp() {
   const myExceptions = useMemo(() => (world?.exceptions ?? []).filter((e) => ['exc', 'EX'].some(() => true) && (e.detectedBy === me?.name || myVerifs.some((v) => v.assetId === e.assetId))), [world, me, myVerifs])
 
   return (
-    <div className="flex min-h-screen items-stretch justify-center gap-8 bg-zinc-100 px-4 py-6 lg:items-center">
+    <div className="flex min-h-dvh flex-col items-stretch justify-center bg-zinc-950 sm:min-h-screen sm:flex-row sm:items-center sm:gap-8 sm:bg-zinc-100 sm:px-4 sm:py-6">
       {/* Explainer panel (desktop only) */}
       <div className="hidden max-w-sm flex-col justify-center lg:flex">
         <div className="text-[11px] font-semibold uppercase tracking-widest text-emerald-600">Surface 3 · Auditor Mobile</div>
@@ -95,13 +95,12 @@ export function MobileApp() {
         </div>
       </div>
 
-      {/* Phone */}
-      <div className="relative">
-        <div className="relative h-[780px] w-[380px] max-w-full overflow-hidden rounded-[2.6rem] border-[10px] border-zinc-900 bg-zinc-950 shadow-2xl">
-          {/* notch */}
-          <div className="absolute left-1/2 top-0 z-40 h-6 w-36 -translate-x-1/2 rounded-b-2xl bg-zinc-900" />
-          {/* status bar */}
-          <div className="relative z-30 flex items-center justify-between bg-zinc-950 px-6 pb-1 pt-2 text-[10px] font-medium text-zinc-300">
+      {/* Phone — full-bleed app on real phones, decorative frame on tablets/desktop */}
+      <div className="relative flex w-full flex-1 flex-col sm:h-[780px] sm:w-[380px] sm:max-w-full sm:flex-none sm:rounded-[2.6rem] sm:border-[10px] sm:border-zinc-900 sm:shadow-2xl">
+        {/* notch (decorative devices only) */}
+        <div className="absolute left-1/2 top-0 z-40 hidden h-6 w-36 -translate-x-1/2 rounded-b-2xl bg-zinc-900 sm:block" />
+        {/* status bar */}
+        <div className="relative z-30 flex items-center justify-between bg-zinc-950 px-5 pb-1 pt-[max(0.5rem,env(safe-area-inset-top))] text-[10px] font-medium text-zinc-300 sm:px-6">
             <span>9:41</span>
             <div className="flex items-center gap-1.5">
               <button onClick={() => { const next = !online; setOnline(next); toast.info(next ? 'Back online' : 'Airplane mode ON', { description: next ? 'Queued operations can now sync.' : 'Verifications will queue on device.' }) }}
@@ -115,7 +114,7 @@ export function MobileApp() {
           </div>
 
           {/* content */}
-          <div className="h-[688px] overflow-hidden">
+          <div className="min-h-0 flex-1 overflow-hidden">
             {tab === 'scan' ? (
               <ScanFlow onExit={() => setTab('home')} online={online} />
             ) : (
@@ -284,7 +283,7 @@ export function MobileApp() {
                 </div>
 
                 {/* bottom tab bar */}
-                <div className="flex shrink-0 items-stretch border-t border-zinc-800 bg-zinc-950 pb-1">
+                <div className="flex shrink-0 items-stretch border-t border-zinc-800 bg-zinc-950 pb-[max(0.25rem,env(safe-area-inset-bottom))]">
                   {([
                     ['home', Home, 'Home'], ['assignments', ClipboardList, 'Jobs'],
                     ['scan', ScanLine, 'Scan'], ['exceptions', ShieldAlert, 'Flags'], ['profile', User, 'Profile'],
@@ -311,10 +310,9 @@ export function MobileApp() {
               </div>
             )}
           </div>
-        </div>
-        {/* phone caption for mobile browsers */}
-        <div className="mt-3 text-center text-[11px] text-zinc-400 lg:hidden">EasySourcing Field App · toggle ONLINE/OFFLINE to test offline queue</div>
       </div>
+      {/* phone caption — only on tablet/desktop below lg (where no explainer shows) */}
+      <div className="mt-3 hidden text-center text-[11px] text-zinc-400 sm:block lg:hidden">EasySourcing Field App · toggle ONLINE/OFFLINE to test offline queue</div>
     </div>
   )
 }

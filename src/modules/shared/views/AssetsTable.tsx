@@ -63,7 +63,7 @@ export function AssetsTable({ clientIdScope, title = 'Asset Register', sub }: { 
         {!clientIdScope && (
           <Select value={clientF} onValueChange={(v) => { setClientF(v); setPage(0) }}>
             <SelectTrigger className="h-9 w-[170px] border-zinc-200 bg-white text-[13px]"><SelectValue /></SelectTrigger>
-            <SelectContent>{world!.clients.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+            <SelectContent>{world!.clients.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}<SelectItem value="all">All clients</SelectItem></SelectContent>
           </Select>
         )}
         <Select value={catF} onValueChange={(v) => { setCatF(v); setPage(0) }}>
@@ -82,8 +82,8 @@ export function AssetsTable({ clientIdScope, title = 'Asset Register', sub }: { 
         </Select>
       </div>
 
-      {/* Table */}
-      <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+      {/* Table (tablet and up) */}
+      <div className="hidden overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] md:block">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] text-[13px]">
             <thead>
@@ -117,18 +117,40 @@ export function AssetsTable({ clientIdScope, title = 'Asset Register', sub }: { 
             </tbody>
           </table>
         </div>
-        {view.length === 0 && <div className="p-6"><EmptyState title="No assets match your filters" sub="Try clearing the search or picking a different category." /></div>}
-        {/* Pagination */}
-        {filtered.length > PAGE && (
-          <div className="flex items-center justify-between border-t border-zinc-100 px-3 py-2">
-            <MicroLabel>Page {page + 1} of {pages}</MicroLabel>
-            <div className="flex gap-1">
-              <Button variant="outline" size="icon" className="h-7 w-7" disabled={page === 0} onClick={() => setPage((p) => p - 1)}><ChevronLeft className="h-3.5 w-3.5" /></Button>
-              <Button variant="outline" size="icon" className="h-7 w-7" disabled={page >= pages - 1} onClick={() => setPage((p) => p + 1)}><ChevronRight className="h-3.5 w-3.5" /></Button>
-            </div>
-          </div>
-        )}
       </div>
+      {/* Card list (phones) — same data, no horizontal scrolling */}
+      <div className="space-y-2 md:hidden">
+        {view.map((a) => (
+          <button key={a.id} onClick={() => openAsset360(a.id)}
+            className="w-full rounded-xl border border-zinc-200 bg-white p-3.5 text-left shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition active:bg-emerald-50/40">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="truncate text-[14px] font-semibold text-zinc-900">{a.description}</div>
+                <div className="truncate font-mono text-[11px] text-zinc-400">{a.code} · {a.serialNumber}</div>
+              </div>
+              <Pill meta={assetStatusMeta[a.status] ?? assetStatusMeta.registered} size="xs" />
+            </div>
+            <div className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-1 text-[11.5px]">
+              <div className="truncate text-zinc-400">Location <span className="font-medium text-zinc-700">{a.locationLabel}</span></div>
+              <div className="truncate text-zinc-400">Custodian <span className="font-medium text-zinc-700">{a.custodian ?? '—'}</span></div>
+              <div className="text-zinc-400">Value <span className="font-medium tabular-nums text-zinc-700">{fmtMoneyShort(a.currentValue)}</span></div>
+              <div className="text-zinc-400">Verified <span className="font-medium text-zinc-700">{a.lastVerifiedAt ? fmtDateShort(a.lastVerifiedAt) : 'never'}</span></div>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {view.length === 0 && <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)]"><EmptyState title="No assets match your filters" sub="Try clearing the search or picking a different category." /></div>}
+      {/* Pagination — shared by table and cards */}
+      {filtered.length > PAGE && (
+        <div className="flex items-center justify-between rounded-xl border border-zinc-200 bg-white px-3 py-2 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+          <MicroLabel>Page {page + 1} of {pages}</MicroLabel>
+          <div className="flex gap-1">
+            <Button variant="outline" size="icon" className="h-9 w-9" disabled={page === 0} onClick={() => setPage((p) => p - 1)} aria-label="Previous page"><ChevronLeft className="h-4 w-4" /></Button>
+            <Button variant="outline" size="icon" className="h-9 w-9" disabled={page >= pages - 1} onClick={() => setPage((p) => p + 1)} aria-label="Next page"><ChevronRight className="h-4 w-4" /></Button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

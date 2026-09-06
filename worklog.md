@@ -83,3 +83,29 @@ Work Log:
 Stage Summary:
 - Deliverable: interactive Deployment Planner (Hub screen 3) + §1.1 in DEPLOYMENT.md — recommendation for a 10-person company: START on one VPS with Docker Compose + Caddy (repo already ships compose/Dockerfile/healthchecks), migrate to Vercel+managed-Postgres at ~16 people, ECS/multi-region past 50 — same images, manifests and REST contract at every stage; only deploy targets move
 - Key files: src/modules/hub/DeployPlanner.tsx (new), src/modules/hub/{HubApp,Landing,manifest}.tsx, src/modules/shared/{store.tsx,ModuleSwitcher.tsx}, DEPLOYMENT.md §1.1
+
+---
+Task ID: 5
+Agent: Main agent (Super Z)
+Task: Make all 5 standalone modules mobile-friendly + modern UI/UX pass + low-cost/free starting-phase deployment (user: "change ui ux all 5 standalone modules all make mobile friendly ... in starting phases deployment any low cost or free")
+
+Work Log:
+- Audited every UI surface (OpsApp, ClientApp, MobileApp, ScanFlow, all shared views, hub screens) at 390px/768px/1280px
+- Ops Portal: replaced cramped 11-pill mobile nav with a proper off-canvas drawer (shared OpsNav definition — desktop aside + drawer can never drift); hamburger 44px target; mobile view title in header; sticky blurred header; h-dvh; p-3 mobile padding
+- Client Portal: same drawer pattern (ClientNav, teal branding, approvals badge), mobile title map
+- AssetsTable: real card list on phones (hidden md:block table + md:hidden cards); pagination + empty state shared by both; added missing "All clients" select item (pre-existing empty label)
+- ExceptionsCenter: mobile cards with severity icon, badges, meta row and full-width quick-action lifecycle buttons (44px)
+- AuditsView: lifecycle stepper now overflow-x-auto (min-w 620px) instead of clipping; assignment rows wrap (progress bar drops to full width on phones, pill hidden)
+- LogsView: table wrapped in overflow-x-auto with min-width
+- Auditor Mobile: full-bleed on real phones (h-dvh, no decorative frame/notch, safe-area insets top+bottom, flex-1 content); frame + explainer kept for tablet/desktop; caption only in the sm–lg band
+- Hub: aria-labels on icon-only header buttons (a11y fix found during browser test)
+- globals.css: 16px inputs on ≤640px (stops iOS focus zoom), text-size-adjust, transparent tap highlight
+- layout.tsx: Viewport export (device-width, viewportFit cover, themeColor)
+- Deploy Planner Stage 1: cost now "₹0 – ₹2,500/mo" with a "Start at ₹0" free-tier block (Oracle Cloud Always Free ARM VM Mumbai, GCP e2-micro/AWS free tier, Vercel Hobby with non-commercial caveat, Neon/Supabase free Postgres); DEPLOYMENT.md §1.1 updated with the ₹0 starting-phase path (+ download copy)
+- Fixed 2 self-introduced bugs caught by tsc/browser: ClientApp + OpsApp missing clientView/opsView/setSurface in destructure after nav extraction (TS2304 → Application error)
+- Browser-verified: ops drawer open/nav/close, asset cards, exception cards with actions, audit trail, client drawer + dashboard + approvals empty state, auditor mobile full-bleed (home + scan flow QR match on ES-MRD-00043), tablet 768px frame+caption, desktop 1280px sidebar unchanged, landing/architecture/planner at 390px, no horizontal scroll anywhere, 0 console errors in fresh session
+
+Stage Summary:
+- All 5 standalone modules (hub surfaces, ops-portal, client-portal, auditor-mobile; core-api is UI-less) are mobile-first responsive with modern drawer navigation, card lists instead of table scroll, safe-area support and 44px touch targets
+- Starting-phase deployment is now ₹0: Oracle Cloud Always Free VM runs the whole compose stack; planner + DEPLOYMENT.md both document the free path
+- Regression: ESLint clean, tsc modules clean (only pre-existing ScanFlow type-strictness + seed/example errors remain), white-box 68/68 + black-box 19/19 pass, dev.log clean

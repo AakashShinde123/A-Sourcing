@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState } from 'react'
 import { cn } from '@/lib/utils'
-import { LayoutDashboard, ClipboardCheck, Boxes, ShieldAlert, ImageIcon, FileText, Stamp, ArrowLeft, QrCode, ChevronDown } from 'lucide-react'
+import { LayoutDashboard, ClipboardCheck, Boxes, ShieldAlert, ImageIcon, FileText, Stamp, ArrowLeft, QrCode, ChevronDown, Menu, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { useES, type ClientView } from '@/modules/shared/store'
 import { ModuleSwitcher } from '@/modules/shared/ModuleSwitcher'
@@ -24,10 +24,42 @@ const NAV: { id: ClientView; label: string; icon: React.ReactNode }[] = [
   { id: 'approvals', label: 'Approvals', icon: <Stamp className="h-4 w-4" /> },
 ]
 
+const TITLES: Record<ClientView, string> = {
+  dashboard: 'Dashboard', audits: 'Audits', assets: 'Assets', exceptions: 'Exceptions',
+  evidence: 'Evidence', reports: 'Reports', approvals: 'Approvals',
+}
+
+// One nav definition shared by the desktop aside and the mobile drawer.
+function ClientNav({ clientCode, pendingApprovals, onNavigate }: { clientCode: string; pendingApprovals: number; onNavigate?: () => void }) {
+  const { clientView, setClientView, setSurface } = useES()
+  return (
+    <>
+      <nav className="flex-1 space-y-0.5 overflow-y-auto px-3">
+        {NAV.map((it) => (
+          <button key={it.id} onClick={() => { setClientView(it.id); onNavigate?.() }}
+            className={cn('flex min-h-11 w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition',
+              clientView === it.id ? 'bg-teal-50 text-teal-800 ring-1 ring-inset ring-teal-100' : 'text-zinc-500 hover:bg-zinc-50 hover:text-zinc-800')}>
+            {it.icon}
+            <span className="flex-1 text-left">{it.label}</span>
+            {it.id === 'approvals' && pendingApprovals > 0 && <span className="rounded-full bg-orange-500 px-1.5 py-px text-[10px] font-bold text-white">{pendingApprovals}</span>}
+          </button>
+        ))}
+      </nav>
+      <div className="flex items-center gap-2 border-t border-zinc-100 p-3">
+        <ModuleSwitcher current={`${clientCode} Portal`} dark={false} direction="up" compact />
+        <button onClick={() => { setSurface('landing'); onNavigate?.() }} className="flex flex-1 items-center gap-2 rounded-lg px-2.5 py-2 text-[12px] font-medium text-zinc-400 transition hover:bg-zinc-50 hover:text-zinc-600">
+          <ArrowLeft className="h-3.5 w-3.5" /> Hub
+        </button>
+      </div>
+    </>
+  )
+}
+
 export function ClientApp() {
-  const { world, clientView, setClientView, clientIdentityId, setClientIdentityId, setSurface } = useES()
+  const { world, clientView, clientIdentityId, setClientIdentityId, setSurface } = useES()
   const client = world!.clients.find((c) => c.id === clientIdentityId)!
   const [userOpen, setUserOpen] = useState(false)
+  const [navOpen, setNavOpen] = useState(false)
   const user = client.users[0]
   const canApprove = user?.role === 'Client Admin' || user?.role === 'Client Approver'
 
@@ -35,8 +67,8 @@ export function ClientApp() {
   const pendingApprovals = audits.filter((a) => a.status === 'client_review').length
 
   return (
-    <div className="flex h-screen bg-zinc-50 text-zinc-900">
-      {/* Sidebar */}
+    <div className="flex h-dvh bg-zinc-50 text-zinc-900 sm:h-screen">
+      {/* Desktop sidebar */}
       <aside className="hidden w-60 shrink-0 flex-col border-r border-zinc-200 bg-white md:flex">
         <div className="flex items-center gap-2.5 px-5 pb-4 pt-5">
           <span className={cn('flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br text-white', 'from-teal-400 to-teal-600')}><QrCode className="h-4 w-4" /></span>
@@ -45,35 +77,48 @@ export function ClientApp() {
             <div className="truncate text-[10px] font-medium uppercase tracking-widest text-zinc-400">{client.name}</div>
           </div>
         </div>
-        <nav className="flex-1 space-y-0.5 overflow-y-auto px-3">
-          {NAV.map((it) => (
-            <button key={it.id} onClick={() => setClientView(it.id)}
-              className={cn('flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition',
-                clientView === it.id ? 'bg-teal-50 text-teal-800 ring-1 ring-inset ring-teal-100' : 'text-zinc-500 hover:bg-zinc-50 hover:text-zinc-800')}>
-              {it.icon}
-              <span className="flex-1 text-left">{it.label}</span>
-              {it.id === 'approvals' && pendingApprovals > 0 && <span className="rounded-full bg-orange-500 px-1.5 py-px text-[10px] font-bold text-white">{pendingApprovals}</span>}
-            </button>
-          ))}
-        </nav>
-        <div className="flex items-center gap-2 border-t border-zinc-100 p-3">
-          <ModuleSwitcher current="Client Portal" dark={false} direction="up" compact />
-          <button onClick={() => setSurface('landing')} className="flex flex-1 items-center gap-2 rounded-lg px-2.5 py-2 text-[12px] font-medium text-zinc-400 transition hover:bg-zinc-50 hover:text-zinc-600">
-            <ArrowLeft className="h-3.5 w-3.5" /> Hub
-          </button>
-        </div>
+        <ClientNav clientCode={client.code} pendingApprovals={pendingApprovals} />
       </aside>
 
+      {/* Mobile nav drawer */}
+      <div className={cn('fixed inset-0 z-50 md:hidden', !navOpen && 'pointer-events-none')}>
+        <div onClick={() => setNavOpen(false)} aria-hidden
+          className={cn('absolute inset-0 bg-zinc-950/40 backdrop-blur-[2px] transition-opacity duration-300', navOpen ? 'opacity-100' : 'opacity-0')} />
+        <aside role="dialog" aria-modal="true" aria-label="Client portal navigation"
+          className={cn('absolute inset-y-0 left-0 flex w-[280px] max-w-[85vw] flex-col border-r border-zinc-200 bg-white shadow-2xl transition-transform duration-300 ease-out',
+            navOpen ? 'translate-x-0' : '-translate-x-full')}>
+          <div className="flex items-center justify-between px-5 pb-3 pt-5">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-white', 'from-teal-400 to-teal-600')}><QrCode className="h-4 w-4" /></span>
+              <div className="min-w-0">
+                <div className="truncate text-[13px] font-bold tracking-tight text-zinc-900">{client.code} Portal</div>
+                <div className="truncate text-[10px] font-medium uppercase tracking-widest text-zinc-400">{client.name}</div>
+              </div>
+            </div>
+            <button onClick={() => setNavOpen(false)} aria-label="Close navigation menu"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-zinc-400 ring-1 ring-zinc-200 transition hover:bg-zinc-50">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          <ClientNav clientCode={client.code} pendingApprovals={pendingApprovals} onNavigate={() => setNavOpen(false)} />
+        </aside>
+      </div>
+
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-zinc-200 bg-white px-4 lg:px-6">
-          <div className="flex items-center gap-3">
-            <button onClick={() => setSurface('landing')} aria-label="Back to all surfaces" className="md:hidden">
+        <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-zinc-200 bg-white/95 px-3 backdrop-blur sm:px-4 lg:px-6">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <button onClick={() => setNavOpen(true)} aria-label="Open navigation menu"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-zinc-600 ring-1 ring-zinc-200 transition active:bg-zinc-100 md:hidden">
+              <Menu className="h-5 w-5" />
+            </button>
+            <button onClick={() => setSurface('landing')} aria-label="Back to all surfaces" className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-lg transition hover:bg-zinc-100 md:flex">
               <span className="flex h-7 w-7 items-center justify-center rounded-md bg-teal-500"><QrCode className="h-4 w-4 text-white" /></span>
             </button>
             <div className="hidden items-center gap-2 text-[13px] text-zinc-400 md:flex">
               <span>{client.name}</span><span>/</span>
-              <span className="font-medium capitalize text-zinc-800">{clientView}</span>
+              <span className="font-medium text-zinc-800">{TITLES[clientView]}</span>
             </div>
+            <div className="truncate text-[14px] font-semibold tracking-tight text-zinc-900 md:hidden">{TITLES[clientView]}</div>
           </div>
           <div className="relative">
             <button onClick={() => setUserOpen((o) => !o)} className="flex items-center gap-2 rounded-full bg-zinc-100 py-1 pl-1 pr-2.5 transition hover:bg-zinc-200/70">
@@ -99,16 +144,7 @@ export function ClientApp() {
           </div>
         </header>
 
-        <div className="flex gap-1 overflow-x-auto border-b border-zinc-200 bg-white px-3 py-2 md:hidden">
-          {NAV.map((it) => (
-            <button key={it.id} onClick={() => setClientView(it.id)}
-              className={cn('whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium', clientView === it.id ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-600')}>
-              {it.label}
-            </button>
-          ))}
-        </div>
-
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6">
           {clientView === 'dashboard' && <ClientDashboard />}
           {clientView === 'audits' && <AuditsView clientIdScope={client.id} />}
           {clientView === 'assets' && <AssetsTable clientIdScope={client.id} title={`${client.code} Asset Register`} />}

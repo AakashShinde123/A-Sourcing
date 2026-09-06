@@ -9,7 +9,7 @@ import React, { useMemo, useState } from 'react'
 import { cn } from '@/lib/utils'
 import {
   ArrowLeft, Rocket, Users, TrendingUp, AlertTriangle, Wallet, Clock,
-  MoveRight, CircleDot, ServerCog, BadgeCheck, Compass,
+  MoveRight, CircleDot, ServerCog, BadgeCheck, Compass, Sparkles,
 } from 'lucide-react'
 import { useES } from '../shared/store'
 import { MODULE_ICONS, ACCENT_CLS } from '../shared/ModuleSwitcher'
@@ -45,6 +45,8 @@ interface Stage {
   costBasis: string
   ops: string
   stack: StackRow[]
+  /** zero-cost starting paths (starting phase) */
+  free?: { label: string; detail: string }[]
   units: UnitPlacement[]
   triggers: string[]
   avoid: { what: string; why: string }
@@ -62,9 +64,15 @@ const STAGES: Stage[] = [
     max: 15,
     headline: 'One VPS + Docker Compose. Boring on purpose.',
     accent: 'emerald',
-    cost: '₹700 – ₹2,500 / month',
-    costBasis: '1 VPS (4 vCPU · 8 GB) + 40 GB volume + domain. All five containers fit with headroom to spare.',
+    cost: '₹0 – ₹2,500 / month',
+    costBasis: 'Free path: ₹0 on an always-free cloud VM. Paid path: 1 VPS (4 vCPU · 8 GB) + 40 GB volume + domain — all five containers fit with room to spare.',
     ops: '2–4 h/week · one person part-time, no DevOps hire needed',
+    free: [
+      { label: 'Oracle Cloud Always Free — ₹0 forever', detail: 'Always-free ARM VM (4 cores · 24 GB RAM, Mumbai region) comfortably runs the entire Docker Compose stack. The strongest genuinely-free option for an Indian company.' },
+      { label: 'GCP e2-micro / AWS free tier — ₹0 for 12+ months', detail: 'Small always-free VMs if your company already lives in one of those clouds. Enough for a pilot; smaller than the paid VPS above.' },
+      { label: 'Frontends on Vercel Hobby — ₹0', detail: 'Hub + portals can host free while usage is small. Note: Hobby terms are non-commercial — move to Pro ($20/seat) or the VPS path when the business outgrows it.' },
+      { label: 'Free Postgres when SQLite is outgrown — still ₹0', detail: 'Neon or Supabase free tier (0.5 GB) — the §4.3 one-env-var swap, zero code changes, zero rupees.' },
+    ],
     stack: [
       { label: 'Host', value: 'Hetzner CX32 / DigitalOcean / AWS Lightsail — one box', why: '10 people generate very little traffic; one box is the cheapest thing that still ships your own Dockerfile unmodified.' },
       { label: 'Gateway', value: 'Caddy (already in the repo) — auto-HTTPS', why: 'Host-routes hub. / ops. / clients. / field. / api. subdomains to each module container. TLS cert issuance is automatic.' },
@@ -322,6 +330,21 @@ export function DeployPlanner() {
               <span className="flex items-center gap-2 text-zinc-300"><Wallet className={cn('h-3.5 w-3.5', a.text)} /> <span className="text-zinc-500">basis:</span> {stage.costBasis}</span>
               <span className="flex items-center gap-2 text-zinc-300"><Clock className="h-3.5 w-3.5 text-zinc-400" /> <span className="text-zinc-500">ops:</span> {stage.ops}</span>
             </div>
+            {stage.free && (
+              <div className="mt-4 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] p-4">
+                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-emerald-300/90">
+                  <Sparkles className="h-3.5 w-3.5" /> Starting phase? Start at ₹0 — free tiers that fit this stage
+                </div>
+                <div className="mt-2.5 grid gap-2 md:grid-cols-2">
+                  {stage.free.map((f) => (
+                    <div key={f.label} className="rounded-lg bg-white/[0.03] p-3 ring-1 ring-white/5">
+                      <div className="text-[12px] font-semibold text-zinc-100">{f.label}</div>
+                      <p className="mt-0.5 text-[11.5px] leading-relaxed text-zinc-500">{f.detail}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Migration triggers + avoid */}

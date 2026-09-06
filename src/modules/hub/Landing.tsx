@@ -37,12 +37,12 @@ export function Landing() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => setSurface('planner')}
+            <button onClick={() => setSurface('planner')} aria-label="Open deployment planner"
               className="flex h-9 items-center gap-2 rounded-lg bg-white/5 px-3 text-[12px] font-semibold text-zinc-200 ring-1 ring-white/10 transition hover:bg-white/10">
               <Rocket className="h-3.5 w-3.5 text-violet-300" />
               <span className="hidden sm:inline">Deploy Planner</span>
             </button>
-            <button onClick={() => setSurface('architecture')}
+            <button onClick={() => setSurface('architecture')} aria-label="Open system architecture map"
               className="flex h-9 items-center gap-2 rounded-lg bg-white/5 px-3 text-[12px] font-semibold text-zinc-200 ring-1 ring-white/10 transition hover:bg-white/10">
               <Network className="h-3.5 w-3.5 text-violet-300" />
               <span className="hidden sm:inline">System Architecture</span>

@@ -42,11 +42,21 @@ change — only **where they run** changes.
 
 | Team size | Stage | Recommended platform | Est. infra cost | Ops burden |
 |---|---|---|---|---|
-| ≤ 15 (**you today: 10**) | 1 · Launch | One VPS (4 vCPU/8 GB) + `docker compose` + Caddy (both ship in the repo), SQLite on a mounted volume + nightly off-box backup | ₹700–2,500/mo | 2–4 h/week, one person part-time |
+| ≤ 15 (**you today: 10**) | 1 · Launch | One always-free or low-cost VM + `docker compose` + Caddy (both ship in the repo), SQLite on a mounted volume + nightly off-box backup | **₹0 free path** · ₹700–2,500/mo paid | 2–4 h/week, one person part-time |
 | 16–50 | 2 · Scale | Vercel (one project per portal) + Fly.io/Railway for the Core API (2+ instances) + Neon/Supabase Postgres + R2/S3 for evidence photos | ₹5,000–12,000/mo | ≈1 h/week |
 | 51+ | 3 · Expansion | AWS ECS Fargate (one service per module image) + RDS Postgres Multi-AZ + CloudFront/S3, ap-south-1 primary + DR region | ₹40,000+/mo | 0.5–1 FTE DevOps |
 
 The short version of the migration logic (full trigger lists in the planner):
+
+- **Starting phase (₹0): free tiers that genuinely fit Stage 1** —
+  **Oracle Cloud Always Free** (ARM VM, 4 cores/24 GB, Mumbai region, free forever)
+  runs the whole Docker Compose stack at zero cost; **GCP `e2-micro`** / **AWS free
+  tier** are alternatives if you already hold accounts. Frontends can also sit on
+  **Vercel Hobby (₹0)** while usage is small — Hobby terms are non-commercial, so
+  step up to Pro ($20/seat) or the VM path when the business outgrows it. When
+  SQLite is outgrown, **Neon/Supabase free Postgres (0.5 GB)** is the §4.3
+  env-var swap — still ₹0. Total starting-phase bill: **₹0/month + a domain
+  (~₹800/yr)**.
 
 - **Stay on Stage 1 until downtime matters** — two teams colliding on deploys,
   `POST /verify` p95 > 2 s (SQLite write contention), or a client SLA demand.

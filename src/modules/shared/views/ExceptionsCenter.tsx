@@ -88,7 +88,7 @@ export function ExceptionsCenter({ clientIdScope, readOnly = false }: { clientId
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+      <div className="hidden overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] md:block">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[860px] text-[13px]">
             <thead>
@@ -128,8 +128,41 @@ export function ExceptionsCenter({ clientIdScope, readOnly = false }: { clientId
             </tbody>
           </table>
         </div>
-        {filtered.length === 0 && <div className="p-6"><EmptyState title="No exceptions match" sub="Adjust the filters above — or enjoy the clean register." /></div>}
       </div>
+
+      {/* Card list (phones) — full-width actions instead of table columns */}
+      <div className="space-y-2 md:hidden">
+        {filtered.map((e) => (
+          <div key={e.id} className="rounded-xl border border-zinc-200 bg-white p-3.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+            <button onClick={() => setSelected(e)} className="w-full text-left">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <ShieldAlert className={`h-4 w-4 shrink-0 ${e.severity === 'critical' ? 'text-red-500' : e.severity === 'high' ? 'text-orange-500' : 'text-zinc-300'}`} />
+                    <span className="truncate text-[14px] font-semibold text-zinc-900">{e.title}</span>
+                  </div>
+                  <div className="mt-0.5 font-mono text-[10px] text-zinc-400">{e.code}</div>
+                </div>
+                <Pill meta={exceptionStatusMeta[e.status] ?? exceptionStatusMeta.open} size="xs" />
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-zinc-500">
+                <SimpleBadge label={severityMeta[e.severity]?.label ?? e.severity} cls={severityMeta[e.severity]?.cls ?? ''} />
+                <span>{exceptionTypeMeta[e.type]?.label ?? e.type}</span>
+                <span className="font-mono text-[11px]">{e.assetCode ?? <span className="italic text-teal-600">discovery</span>}</span>
+                <span className="text-zinc-400">{fmtDateTime(e.detectedAt)}</span>
+              </div>
+            </button>
+            {!readOnly && NEXT_ACTION[e.status]?.length ? (
+              <Button size="sm" variant="outline" className="mt-3 h-10 w-full gap-1 text-[12px]"
+                onClick={() => act(e, NEXT_ACTION[e.status][0].action)}>
+                {NEXT_ACTION[e.status][0].icon}{NEXT_ACTION[e.status][0].label}<ArrowRight className="h-3.5 w-3.5" />
+              </Button>
+            ) : null}
+          </div>
+        ))}
+      </div>
+
+      {filtered.length === 0 && <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)]"><EmptyState title="No exceptions match" sub="Adjust the filters above — or enjoy the clean register." /></div>}
 
       {/* Detail sheet */}
       <Sheet open={!!detail} onOpenChange={(o) => !o && setSelected(null)}>

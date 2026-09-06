@@ -108,11 +108,12 @@ function AuditDetail({ audit, onBack }: { audit: Audit; onBack: () => void }) {
       {/* Lifecycle */}
       <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
         <MicroLabel>Lifecycle</MicroLabel>
-        <div className="mt-3 flex items-center">
+        <div className="-mx-1 overflow-x-auto px-1 pb-1">
+          <div className="mt-3 flex min-w-[620px] items-center">
           {AUDIT_STAGES.slice(0, 8).map((s, i) => (
             <React.Fragment key={s}>
               <div className="flex flex-col items-center gap-1.5">
-                <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${i < stage ? 'bg-emerald-500 text-white' : i === stage ? 'bg-zinc-900 text-white ring-4 ring-zinc-900/10' : 'bg-zinc-100 text-zinc-400'}`}>
+                <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${i < stage ? 'bg-emerald-500 text-white' : i === stage ? 'bg-zinc-900 text-white ring-4 ring-zinc-900/10' : 'bg-zinc-100 text-zinc-400'}`}>
                   {i < stage ? '✓' : i + 1}
                 </span>
                 <span className={`whitespace-nowrap text-[10px] font-medium ${i <= stage ? 'text-zinc-700' : 'text-zinc-300'}`}>{auditStatusMeta[s].label}</span>
@@ -120,6 +121,7 @@ function AuditDetail({ audit, onBack }: { audit: Audit; onBack: () => void }) {
               {i < 7 && <div className={`mx-1 mb-4 h-px flex-1 ${i < stage ? 'bg-emerald-400' : 'bg-zinc-100'}`} />}
             </React.Fragment>
           ))}
+          </div>
         </div>
       </div>
 
@@ -158,17 +160,19 @@ function AuditDetail({ audit, onBack }: { audit: Audit; onBack: () => void }) {
                 const done = new Set(world!.verifications.filter((v) => v.assignmentId === asg.id).map((v) => v.assetId)).size
                 const pct = inScope ? Math.round((done / inScope) * 100) : 0
                 return (
-                  <div key={asg.id} className="flex items-center gap-3 py-3">
+                  <div key={asg.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 py-3">
                     <Avatar name={asg.auditor.name} seed={asg.auditor.colorSeed} />
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-[13px] font-medium text-zinc-800">{asg.auditor.name}</div>
                       <div className="truncate text-xs text-zinc-400">{asg.scope}</div>
                     </div>
-                    <div className="w-36">
+                    <div className="order-last w-full sm:order-none sm:w-36">
                       <div className="mb-1 flex justify-between text-[11px] tabular-nums text-zinc-500"><span>{done}/{inScope}</span><span>{pct}%</span></div>
                       <ProgressBar value={pct} />
                     </div>
-                    <Pill size="xs" meta={asg.status === 'field_complete' ? { label: 'Field Complete', cls: 'bg-teal-50 text-teal-700 ring-teal-200', dot: 'bg-teal-500' } : asg.status === 'in_progress' ? { label: 'In Progress', cls: 'bg-emerald-50 text-emerald-700 ring-emerald-200', dot: 'bg-emerald-500' } : { label: 'Assigned', cls: 'bg-zinc-100 text-zinc-600 ring-zinc-200', dot: 'bg-zinc-400' }} />
+                    <span className="hidden sm:block">
+                      <Pill size="xs" meta={asg.status === 'field_complete' ? { label: 'Field Complete', cls: 'bg-teal-50 text-teal-700 ring-teal-200', dot: 'bg-teal-500' } : asg.status === 'in_progress' ? { label: 'In Progress', cls: 'bg-emerald-50 text-emerald-700 ring-emerald-200', dot: 'bg-emerald-500' } : { label: 'Assigned', cls: 'bg-zinc-100 text-zinc-600 ring-zinc-200', dot: 'bg-zinc-400' }} />
+                    </span>
                   </div>
                 )
               })}
