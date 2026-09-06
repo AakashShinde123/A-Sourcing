@@ -155,3 +155,25 @@ Stage Summary:
 - All 5 modules now share one LIGHT, colorful, premium language — zero dark mode; each module keeps a distinct accent (Ops emerald, Client amber, Auditor teal, Hub violet)
 - Regression: ESLint clean; tsc only pre-existing ScanFlow/bun:test notes; white-box 68/68 + black-box 19/19 pass; registry 200; fresh-session browser pass at 1440+390 across landing/architecture/planner/ops/client/mobile/scan-flow — no horizontal scroll, 0 console errors, 0 page errors; golden path scan→verify→save re-verified in new skin (ES-MRD-00059 matched & synced)
 - Screenshots: .zscripts/v4-landing.png, v4-landing-390.png, v4-ops.png, v4-ops-drawer-390.png, v4-client.png, v4-mobile.png, v4-mobile-390.png, v4-scan-390b.png, v4-verify-390.png, v4-done-390.png, v4-arch.png, v4-planner.png, final-hero.png
+
+---
+Task ID: 6
+Agent: Super Z (main)
+Task: User shared friend's audit-company working portal (netlify "EasySourcing Enterprise Ultimate") asking "What is this" — analyze it, compare with our platform, close any real gap it exposes.
+
+Work Log:
+- Analyzed reference portal at 1440 + 390 (screenshots .zscripts/ref-portal-desktop.png, ref-portal-mobile.png): single-page physical-verification tool — operator name, Upload Base Excel, barcode scan/search, 15-field verification form (colour/floor/department/working condition/tag location/extra details), GPS-required-before-save, sticky Save bar, dashboard counters (total/verified/pending/duplicates), export verified/pending, image gallery
+- Gap analysis vs our platform: we already cover 100% of its workflow (multi-client, assignments, exceptions, approvals, offline queue) EXCEPT its entry point — "upload the client's register file". Our assets were seed-only with no intake path
+- NEW FEATURE — asset-register intake, end to end:
+  · POST /api/core/assets/import (src/app/api/core/assets/import/route.ts): { clientId, rows } → { imported, skipped, rejected, items[] }; per-row verdicts (missing required fields → rejected; existing clientId+clientAssetId → duplicate, idempotent re-upload); ES-<clientCode>-NNNNN code allocator (in-memory advance + P2002 retry, same pattern as /verify discovery); case-insensitive location fuzzy-match (unknown stays unlinked); 5000-row cap; single append-only REGISTER_IMPORTED audit-log entry
+  · Pure parser src/modules/shared/register-parse.ts: quoted-cell CSV splitter + 40-alias header map (Asset ID/Particulars/Group/Brand/Serial No/Floor/Holder…), headerless positional fallback
+  · ImportRegisterDialog (shared/views): client picker (locked in client scope), file drop (.csv) or paste box + sample register, parse verdict (valid/invalid + header-mapped note), 5-row preview, gradient import CTA; wired into AssetsTable next to Export XLSX for Ops and Client portals
+  · store.importAssets action with toast + refresh
+- Polish: KPI card labels now truncate with ellipsis + title tooltip (no more overlap with icon chip); register-parse extracted pure for testability
+- Tests: new tests/whitebox/assets-import.test.ts — 9 tests (happy path + code format, location fuzzy-match/link vs unlinked, idempotent re-upload, mixed batch verdicts, in-batch twins, audit-trail entry, 404/400 validation, CSV alias/positional/quoted parsing). Suite now 77 whitebox
+- E2E: drove the dialog in a real browser — pasted 3-row CSV → "3 valid, header mapped automatically" preview → picked Meridian → import → Laser Cutter landed as ES-MRD-00089 in Production Block A, status Registered; Audit Trail shows "Register import · MRD · 3 imported · 0 duplicates skipped · 0 rejected"; dialog verified responsive at 390 (scrollable, touch-friendly); fresh-load console 0 errors
+
+Stage Summary:
+- Platform now matches the real audit-company workflow front door: client sends register (Excel→CSV) → ops imports with duplicate protection → tagging/assignment → field verification. 96 tests green (77 whitebox + 19 blackbox), lint clean, registry 200
+- Reference portal verdict: same genre (physical verification), but single-operator single-page; ours is the multi-tenant platform version of it with governance the tool lacks
+- Screenshots: .zscripts/ref-portal-*.png, audit/import-dialog.png, audit/import-filled.png, audit/import-390.png

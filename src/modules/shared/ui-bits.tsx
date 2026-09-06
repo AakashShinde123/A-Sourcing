@@ -69,9 +69,9 @@ export function Kpi({ label, value, sub, icon, tone = 'default', onClick }: {
       {tone !== 'default' && (
         <span className={cn('pointer-events-none absolute -right-8 -top-8 h-20 w-20 rounded-full opacity-[0.07]', t.chip)} aria-hidden />
       )}
-      <div className="flex w-full items-center justify-between">
-        <MicroLabel>{label}</MicroLabel>
-        {icon && <span className={cn('flex h-8 w-8 items-center justify-center rounded-xl ring-1 ring-black/5 transition group-hover:scale-105', t.chip, t.glow)}>{icon}</span>}
+      <div className="flex w-full items-center justify-between gap-2">
+        <div className="min-w-0 flex-1 truncate pr-0.5" title={typeof label === 'string' ? label : undefined}><MicroLabel>{label}</MicroLabel></div>
+        {icon && <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ring-1 ring-black/5 transition group-hover:scale-105', t.chip, t.glow)}>{icon}</span>}
       </div>
       <div>
         <div className="text-[1.65rem] font-extrabold leading-none tracking-tight text-zinc-900 tabular-nums">{value}</div>

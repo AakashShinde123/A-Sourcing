@@ -4,9 +4,10 @@ import React, { useMemo, useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
-import { Search, ChevronLeft, ChevronRight, Download, QrCode } from 'lucide-react'
+import { Search, ChevronLeft, ChevronRight, Download, QrCode, FileUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { useES } from '@/modules/shared/store'
+import { ImportRegisterDialog } from '@/modules/shared/views/ImportRegisterDialog'
 import { Pill, SimpleBadge, EmptyState, MicroLabel } from '@/modules/shared/ui-bits'
 import { assetStatusMeta, conditionMeta, fmtDateShort, fmtMoneyShort } from '@/modules/shared/format'
 import type { Asset } from '@/modules/shared/types'
@@ -20,6 +21,7 @@ export function AssetsTable({ clientIdScope, title = 'Asset Register', sub }: { 
   const [catF, setCatF] = useState('all')
   const [statusF, setStatusF] = useState('all')
   const [page, setPage] = useState(0)
+  const [importOpen, setImportOpen] = useState(false)
 
   const assets = useMemo(
     () => (clientIdScope ? world!.assets.filter((a) => a.clientId === clientIdScope) : world!.assets),
@@ -49,9 +51,14 @@ export function AssetsTable({ clientIdScope, title = 'Asset Register', sub }: { 
           <h1 className="text-lg font-semibold tracking-tight text-zinc-900">{title}</h1>
           <p className="text-[13px] text-zinc-500">{sub ?? `${filtered.length} of ${assets.length} assets · click any row for Asset 360`}</p>
         </div>
-        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => toast.success('Export queued', { description: 'XLSX export will download when ready (background job).' })}>
-          <Download className="h-3.5 w-3.5" /> Export XLSX
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setImportOpen(true)}>
+            <FileUp className="h-3.5 w-3.5" /> Import register
+          </Button>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => toast.success('Export queued', { description: 'XLSX export will download when ready (background job).' })}>
+            <Download className="h-3.5 w-3.5" /> Export XLSX
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -141,6 +148,13 @@ export function AssetsTable({ clientIdScope, title = 'Asset Register', sub }: { 
       </div>
 
       {view.length === 0 && <div className="card p-6"><EmptyState title="No assets match your filters" sub="Try clearing the search or picking a different category." /></div>}
+
+      <ImportRegisterDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        defaultClientId={clientF !== 'all' ? clientF : undefined}
+        lockClient={clientIdScope}
+      />
       {/* Pagination — shared by table and cards */}
       {filtered.length > PAGE && (
         <div className="flex items-center justify-between card px-3 py-2">

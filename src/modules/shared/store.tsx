@@ -35,6 +35,7 @@ interface Store {
   submitApproval: (auditId: string, decision: string, byName: string, byRole: string, comment?: string) => Promise<void>
   generateReport: (auditId: string) => Promise<void>
   finalizeReport: (auditId: string) => Promise<void>
+  importAssets: (clientId: string, rows: Record<string, unknown>[]) => Promise<{ imported: number; skipped: number; rejected: number } | null>
 }
 
 const Ctx = createContext<Store | null>(null)
@@ -116,14 +117,29 @@ export function ESProvider({ children }: { children: React.ReactNode }) {
     await refresh()
   }, [refresh])
 
+  const importAssets = useCallback(async (clientId: string, rows: Record<string, unknown>[]) => {
+    const res = await fetch(`${API_BASE}/assets/import`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clientId, rows }),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => null) as { error?: string } | null
+      toast.error('Import failed', { description: err?.error ?? `Core API responded ${res.status}` })
+      return null
+    }
+    const data = await res.json() as { imported: number; skipped: number; rejected: number }
+    await refresh()
+    return data
+  }, [refresh])
+
   const openAudit = useCallback((id: string) => { setSelectedAuditId(id) }, [])
 
   const value = useMemo<Store>(() => ({
     world, loading, surface, setSurface, opsView, setOpsView, clientView, setClientView,
     clientIdentityId, setClientIdentityId,
     asset360, openAsset360: (assetId) => setAsset360({ assetId }), closeAsset360: () => setAsset360(null),
-    selectedAuditId, openAudit, refresh, submitVerifications, patchException, submitApproval, generateReport, finalizeReport,
-  }), [world, loading, surface, opsView, clientView, clientIdentityId, asset360, selectedAuditId, refresh, submitVerifications, patchException, submitApproval, generateReport, finalizeReport])
+    selectedAuditId, openAudit, refresh, submitVerifications, patchException, submitApproval, generateReport, finalizeReport, importAssets,
+  }), [world, loading, surface, opsView, clientView, clientIdentityId, asset360, selectedAuditId, refresh, submitVerifications, patchException, submitApproval, generateReport, finalizeReport, importAssets])
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
