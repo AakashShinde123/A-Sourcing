@@ -50,7 +50,7 @@ export function AnalyticsView() {
         <p className="text-[13px] text-zinc-500">Deterministic metrics from the reconciliation engine — configurable, transparent, unit-tested</p>
       </div>
       <div className="grid gap-4 xl:grid-cols-3">
-        <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] xl:col-span-2">
+        <div className="card p-4 xl:col-span-2">
           <MicroLabel>Exceptions by type</MicroLabel>
           <div className="mt-4 space-y-3.5">
             {byType.map((d, i) => (
@@ -67,7 +67,7 @@ export function AnalyticsView() {
             {byType.length === 0 && <div className="py-8 text-center text-xs text-zinc-400">No exceptions recorded</div>}
           </div>
         </div>
-        <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+        <div className="card p-4">
           <MicroLabel>Condition distribution</MicroLabel>
           <div className="relative mt-2 h-44">
             <ResponsiveContainer width="100%" height="100%">
@@ -88,7 +88,7 @@ export function AnalyticsView() {
         </div>
       </div>
       <div className="grid gap-4 xl:grid-cols-2">
-        <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+        <div className="card p-4">
           <MicroLabel>Auditor productivity</MicroLabel>
           <div className="mt-3 space-y-3">
             {byAuditor.map((a) => (
@@ -102,7 +102,7 @@ export function AnalyticsView() {
             ))}
           </div>
         </div>
-        <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+        <div className="card p-4">
           <MicroLabel>Risk indicators</MicroLabel>
           <div className="mt-3 grid grid-cols-2 gap-3">
             {[
@@ -140,7 +140,7 @@ export function TeamView() {
           const vs = world!.verifications.filter((v) => v.auditorId === a.id)
           const asgs = world!.assignments.filter((x) => x.auditorId === a.id)
           return (
-            <div key={a.id} className="rounded-xl border border-zinc-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+            <div key={a.id} className="card p-4">
               <div className="flex items-center gap-3">
                 <Avatar name={a.name} seed={a.colorSeed} size="lg" />
                 <div className="min-w-0 flex-1">
@@ -178,7 +178,7 @@ export function LogsView() {
         <h1 className="text-lg font-semibold tracking-tight text-zinc-900">Digital Audit Trail</h1>
         <p className="text-[13px] text-zinc-500">WHO · WHAT · WHEN · WHERE — append-only, protected from ordinary modification</p>
       </div>
-      <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+      <div className="overflow-hidden card">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-[13px]">
           <thead>

@@ -34,7 +34,7 @@ function AuditList({ audits, onOpen }: { audits: Audit[]; onOpen: (id: string) =
           const stage = auditStageIndex(a.status)
           return (
             <button key={a.id} onClick={() => onOpen(a.id)}
-              className="group rounded-xl border border-zinc-200 bg-white p-4 text-left shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:border-emerald-300 hover:shadow-[0_4px_14px_rgba(16,185,129,0.08)]">
+              className="group card card-hover p-4 text-left transition hover:border-emerald-300 hover:shadow-[0_4px_14px_rgba(16,185,129,0.08)]">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
@@ -106,7 +106,7 @@ function AuditDetail({ audit, onBack }: { audit: Audit; onBack: () => void }) {
       </div>
 
       {/* Lifecycle */}
-      <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+      <div className="card p-4">
         <MicroLabel>Lifecycle</MicroLabel>
         <div className="-mx-1 overflow-x-auto px-1 pb-1">
           <div className="mt-3 flex min-w-[620px] items-center">
@@ -127,7 +127,7 @@ function AuditDetail({ audit, onBack }: { audit: Audit; onBack: () => void }) {
 
       <div className="grid gap-4 xl:grid-cols-3">
         {/* Reconciliation */}
-        <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+        <div className="card p-4">
           <MicroLabel>Reconciliation</MicroLabel>
           <div className="mt-2 flex items-end gap-2">
             <span className="text-3xl font-semibold tabular-nums text-zinc-900">{audit.progress}%</span>
@@ -151,7 +151,7 @@ function AuditDetail({ audit, onBack }: { audit: Audit; onBack: () => void }) {
         </div>
 
         {/* Assignments */}
-        <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] xl:col-span-2">
+        <div className="card p-4 xl:col-span-2">
           <MicroLabel>Field assignments</MicroLabel>
           {assignments.length === 0 ? <div className="mt-3"><EmptyState title="No assignments yet" sub="This audit is still in planning — auditors will appear here once scopes are published." /></div> : (
             <div className="mt-2 divide-y divide-zinc-100">
@@ -183,7 +183,7 @@ function AuditDetail({ audit, onBack }: { audit: Audit; onBack: () => void }) {
 
       <div className="grid gap-4 xl:grid-cols-3">
         {/* Recent verifications */}
-        <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] xl:col-span-2">
+        <div className="card p-4 xl:col-span-2">
           <MicroLabel>Recent field verifications</MicroLabel>
           <div className="mt-2 divide-y divide-zinc-50">
             {verifs.map((v) => (
@@ -204,7 +204,7 @@ function AuditDetail({ audit, onBack }: { audit: Audit; onBack: () => void }) {
 
         {/* Exceptions + reports + approvals */}
         <div className="space-y-4">
-          <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+          <div className="card p-4">
             <MicroLabel>Exceptions · {audit.totalExceptions}</MicroLabel>
             <div className="mt-2 space-y-1.5">
               {exs.slice(0, 4).map((e) => (
@@ -216,7 +216,7 @@ function AuditDetail({ audit, onBack }: { audit: Audit; onBack: () => void }) {
               {exs.length === 0 && <div className="py-3 text-center text-xs text-zinc-400">No exceptions in this audit</div>}
             </div>
           </div>
-          <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+          <div className="card p-4">
             <MicroLabel>Reports &amp; approvals</MicroLabel>
             <div className="mt-2 space-y-1.5">
               {reports.map((r) => (

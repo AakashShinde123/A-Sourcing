@@ -44,7 +44,7 @@ export function OpsOverview() {
 
       <div className="grid gap-4 xl:grid-cols-3">
         {/* Trend */}
-        <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] xl:col-span-2">
+        <div className="card p-4 xl:col-span-2">
           <SectionHeader title="Field verification activity" sub="Daily verifications synced from the field · last 14 days" />
           <div className="mt-4 h-56">
             <ResponsiveContainer width="100%" height="100%">
@@ -53,15 +53,21 @@ export function OpsOverview() {
                 <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: '#a1a1aa' }} allowDecimals={false} width={24} />
                 <Tooltip cursor={{ fill: 'rgba(0,0,0,0.03)' }} contentStyle={{ borderRadius: 10, border: '1px solid #e4e4e7', fontSize: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
                   formatter={(v: number, name: string) => [v, name]} />
-                <Bar dataKey="matched" name="Matched" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} />
+                <Bar dataKey="matched" name="Matched" stackId="a" fill="url(#barMatched)" radius={[0, 0, 0, 0]} />
                 <Bar dataKey="exceptions" name="Exceptions raised" stackId="a" fill="#f59e0b" radius={[3, 3, 0, 0]} />
+                <defs>
+                  <linearGradient id="barMatched" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#34d399" />
+                    <stop offset="100%" stopColor="#059669" />
+                  </linearGradient>
+                </defs>
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         {/* Reconciliation donut for hero audit */}
-        <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+        <div className="card p-4">
           <SectionHeader title="Reconciliation snapshot" sub={hero ? `${hero.code} · ${hero.name}` : '—'} />
           {hero && donut.length > 0 ? (
             <div className="mt-2 flex h-56 flex-col">
@@ -93,7 +99,7 @@ export function OpsOverview() {
 
       <div className="grid gap-4 xl:grid-cols-3">
         {/* Active audits */}
-        <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] xl:col-span-2">
+        <div className="card p-4 xl:col-span-2">
           <SectionHeader title="Audit projects in flight" sub="Live progress across all clients" right={
             <button onClick={() => setOpsView('audits')} className="text-[13px] font-medium text-emerald-700 hover:text-emerald-800">View all →</button>
           } />
@@ -102,7 +108,7 @@ export function OpsOverview() {
               const client = world.clients.find((c) => c.id === a.clientId)
               return (
                 <button key={a.id} onClick={() => { openAudit(a.id); setOpsView('audits') }}
-                  className="flex w-full items-center gap-4 py-3 text-left transition hover:bg-zinc-50/60">
+                  className="-mx-2 flex w-full items-center gap-4 rounded-lg px-2 py-3 text-left transition hover:bg-emerald-50/50">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="truncate text-[13px] font-medium text-zinc-900">{a.name}</span>
@@ -127,14 +133,14 @@ export function OpsOverview() {
         </div>
 
         {/* Exception feed */}
-        <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+        <div className="card p-4">
           <SectionHeader title="Exception feed" sub="Highest severity first" right={
             <button onClick={() => setOpsView('exceptions')} className="text-[13px] font-medium text-emerald-700 hover:text-emerald-800">Center →</button>
           } />
           <div className="mt-3 space-y-2.5">
             {recentEx.length === 0 && <EmptyState title="No open exceptions" />}
             {recentEx.map((e) => (
-              <div key={e.id} className="rounded-lg border border-zinc-100 bg-zinc-50/60 p-2.5">
+              <div key={e.id} className="rounded-lg border border-zinc-100 bg-zinc-50/60 p-2.5 transition hover:border-zinc-200 hover:bg-white hover:shadow-sm">
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-mono text-[10px] text-zinc-400">{e.code}</span>
                   <div className="flex items-center gap-1.5">
@@ -153,13 +159,13 @@ export function OpsOverview() {
       </div>
 
       {/* Auditor strip */}
-      <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+      <div className="card p-4">
         <SectionHeader title="Field team status" sub="Sync telemetry from auditor devices" right={
           <button onClick={() => setOpsView('team')} className="text-[13px] font-medium text-emerald-700 hover:text-emerald-800">Manage team →</button>
         } />
         <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
           {auditors.map((a) => (
-            <div key={a.id} className="flex items-center gap-2.5 rounded-lg border border-zinc-100 p-2.5">
+            <div key={a.id} className="card-hover flex items-center gap-2.5 rounded-xl border border-zinc-100 bg-white p-2.5 shadow-sm">
               <Avatar name={a.name} seed={a.colorSeed} />
               <div className="min-w-0">
                 <div className="truncate text-[13px] font-medium text-zinc-800">{a.name}</div>

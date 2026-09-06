@@ -22,7 +22,7 @@ export function ClientsView() {
           const audits = world!.audits.filter((a) => a.clientId === c.id)
           const open = openId === c.id
           return (
-            <div key={c.id} className="rounded-xl border border-zinc-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+            <div key={c.id} className="card">
               <button className="flex w-full items-center gap-3 p-4 text-left" onClick={() => setOpenId(open ? null : c.id)}>
                 <Avatar name={c.name} seed={c.colorSeed} size="lg" />
                 <div className="min-w-0 flex-1">
@@ -132,7 +132,7 @@ export function LocationsView({ clientIdScope }: { clientIdScope?: string }) {
         {roots.map((r) => {
           const client = world!.clients.find((c) => c.id === r.clientId)
           return (
-            <div key={r.id} className="rounded-xl border border-zinc-200 bg-white p-3 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+            <div key={r.id} className="card p-3">
               <div className="mb-2 flex items-center gap-2 border-b border-zinc-100 pb-2">
                 <MapPin className="h-4 w-4 text-emerald-600" />
                 <div>
@@ -177,7 +177,7 @@ export function EvidenceView({ clientIdScope }: { clientIdScope?: string }) {
       {evidence.length === 0 ? <EmptyState icon={<ImageIcon className="h-8 w-8" />} title="No evidence" /> : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
           {evidence.slice(0, 36).map((e) => (
-            <div key={e.id} className="group overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition hover:shadow-md">
+            <div key={e.id} className="group overflow-hidden card transition hover:shadow-md">
               <EvidenceThumb seed={e.colorSeed} code={e.assetCode} kind={e.kind} className="rounded-none" />
               <div className="p-2">
                 <div className="truncate text-[11px] font-medium text-zinc-700">{e.label}</div>
@@ -212,7 +212,7 @@ export function ReportsView({ clientIdScope }: { clientIdScope?: string }) {
           const audit = world!.audits.find((a) => a.id === r.auditId)
           const client = world!.clients.find((c) => c.id === r.clientId)
           return (
-            <div key={r.id} className="flex flex-wrap items-center gap-4 rounded-xl border border-zinc-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+            <div key={r.id} className="flex flex-wrap items-center gap-4 card p-4">
               <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-900"><FileText className="h-5 w-5 text-white" /></span>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">

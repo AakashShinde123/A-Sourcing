@@ -142,6 +142,147 @@
   100% { top: 8%; opacity: 0.9; }
 }
 
+/* ════════════════════════════════════════════════════════════════
+   EasySourcing Design System 3.0 — premium surfaces & motion
+   ════════════════════════════════════════════════════════════════ */
+
+::selection {
+  background: rgba(16, 185, 129, 0.25);
+}
+
+/* ── Premium light card (portals) ─────────────────────────────── */
+.card {
+  border-radius: 1rem;
+  border: 1px solid rgba(228, 228, 231, 0.7);
+  background: #fff;
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.04),
+    0 1px 3px rgba(16, 24, 40, 0.05);
+}
+.card-hover {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s, border-color 0.25s;
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  border-color: rgba(212, 212, 216, 1);
+  box-shadow:
+    0 4px 8px -2px rgba(16, 24, 40, 0.06),
+    0 12px 24px -4px rgba(16, 24, 40, 0.1);
+}
+
+/* ── Dark glass panel (hub / mobile) ──────────────────────────── */
+.glass {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* ── Aurora hero background (dark surfaces) ───────────────────── */
+.bg-aurora {
+  position: relative;
+}
+.bg-aurora::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(52rem 30rem at 18% -8%, rgba(16, 185, 129, 0.16), transparent 60%),
+    radial-gradient(44rem 28rem at 84% -12%, rgba(139, 92, 246, 0.12), transparent 62%),
+    radial-gradient(38rem 26rem at 55% 118%, rgba(20, 184, 166, 0.1), transparent 60%);
+}
+
+/* ── Blueprint grid overlay, fades out downward ───────────────── */
+.bg-grid-fade {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+  background-size: 44px 44px;
+  -webkit-mask-image: radial-gradient(ellipse 90% 68% at 50% 0%, black 25%, transparent 78%);
+  mask-image: radial-gradient(ellipse 90% 68% at 50% 0%, black 25%, transparent 78%);
+}
+
+/* ── Film grain — kills flat "solid color" look ────────────────── */
+.noise::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+}
+
+/* ── Gradient display text ────────────────────────────────────── */
+.text-gradient {
+  background: linear-gradient(115deg, #d1fae5 0%, #6ee7b7 35%, #34d399 62%, #5eead4 88%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.text-gradient-warm {
+  background: linear-gradient(115deg, #ffffff 15%, #fde68a 55%, #fcd34d 85%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ── Glow ring used on logo chips / hero buttons ───────────────── */
+.glow-emerald {
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.35), 0 8px 28px -6px rgba(16, 185, 129, 0.5);
+}
+
+/* ── Motion ───────────────────────────────────────────────────── */
+@keyframes es-fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up {
+  animation: es-fade-up 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes es-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+.animate-float {
+  animation: es-float 7s ease-in-out infinite;
+}
+@keyframes es-shimmer {
+  0% { background-position: -200% 50%; }
+  100% { background-position: 200% 50%; }
+}
+.animate-shimmer {
+  background-size: 200% 100%;
+  animation: es-shimmer 6s linear infinite;
+}
+@keyframes es-pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.45); }
+  70% { box-shadow: 0 0 0 14px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+.animate-pulse-ring {
+  animation: es-pulse-ring 2.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up, .animate-float, .animate-shimmer, .animate-pulse-ring {
+    animation: none;
+  }
+}
+
+/* ── Gradient hairline top edge for hero panels ────────────────── */
+.edge-gradient-top {
+  position: relative;
+}
+.edge-gradient-top::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 10%;
+  right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+}
+
 /* refined scrollbars for dense enterprise tables */
 * {
   scrollbar-width: thin;

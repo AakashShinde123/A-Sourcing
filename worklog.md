@@ -109,3 +109,25 @@ Stage Summary:
 - All 5 standalone modules (hub surfaces, ops-portal, client-portal, auditor-mobile; core-api is UI-less) are mobile-first responsive with modern drawer navigation, card lists instead of table scroll, safe-area support and 44px touch targets
 - Starting-phase deployment is now ₹0: Oracle Cloud Always Free VM runs the whole compose stack; planner + DEPLOYMENT.md both document the free path
 - Regression: ESLint clean, tsc modules clean (only pre-existing ScanFlow type-strictness + seed/example errors remain), white-box 68/68 + black-box 19/19 pass, dev.log clean
+
+---
+Task ID: 6
+Agent: Main agent (Super Z)
+Task: Full graphics redesign — premium visual language across all 5 standalone modules, web-grade desktop + great mobile (user: "redesign all graphics ... looking normal give proper function web looking web mobile looking great mobile")
+
+Work Log:
+- Built Design System 3.0 in globals.css: .card/.card-hover (layered enterprise shadows + lift), .glass (dark glassmorphism), .bg-aurora (3-layer radial mesh), .bg-grid-fade (blueprint grid w/ radial mask), .noise (SVG film grain), .text-gradient/.text-gradient-warm (gradient display text), .glow-emerald, .edge-gradient-top, .animate-fade-up/-float/-shimmer/-pulse-ring (all behind prefers-reduced-motion), emerald ::selection
+- Hub Landing rebuilt as premium marketing surface: aurora+grid+grain ambience, glass header with glowing gradient logo, two-tone gradient hero headline, LIVE glass "browser chrome" dashboard mock (deterministic CSS mini bar-chart with staggered entrance, conic-gradient donut, KPI strip, live event ticker), edge-anchored floating glass chips (QR verified / Report approved), redesigned loop stepper with gradient connector + glowing icon nodes, glass stat band with gradient numerals, module cards with per-accent hover glow + lift, dual gradient CTA banners (Architecture violet / Planner emerald with "Start free" ₹0 hook)
+- Shared ui-bits premiumized (propagates to both portals): KPI cards w/ gradient icon chips + tone glows + corner wash + hover lift; SectionHeader w/ emerald gradient tick; gradient progress Bars w/ inset ring; premium EmptyState icon chip; richer Avatars/EvidenceThumbs/Pills
+- Ops Portal: sidebar w/ emerald top wash + glowing active-item indicator bar + gradient section labels + gradient exception badge; glass h-16 header w/ focus-ring search + ⌘K kbd chip + ringed user chip; tinted gradient page canvas; recharts bars now use linearGradient fill; audit rows hover emerald; team cards card-hover
+- Client Portal: teal gradient logo chips + sidebars w/ teal wash, teal active indicator bars, gradient approvals badge, glass header, dashboard greeting elevated to gradient-wash hero card
+- Auditor Mobile: emerald gradient assignment card w/ corner glow + glass stat tiles, SCAN ASSET button now emerald→teal gradient w/ pulse-ring animation, glass bottom tab bar w/ gradient scan chip, refined verification rows
+- ModuleSwitcher: glass dropdown w/ gradient-edge header + active ring state; HubApp loading screen gets aurora + glowing logo
+- ArchitectureMap + DeployPlanner: wrapped in isolate'd aurora ambience (content-safe stacking via -z-10)
+- Bulk-upgraded 21 flat "rounded-xl border-zinc-200 bg-white shadow" panels to .card system across OpsOverview, AnalyticsTeamLogs, ClientApp, AuditsView, MiscViews, AssetsTable, ExceptionsCenter (grep-verified zero leftovers)
+- Fixed: initial floating-chip overlap of mock data (re-anchored to panel edges); aurora stacking context on hub screens (isolate + -z-10); perl multi-file line-counter miss on DeployPlanner wrapper
+
+Stage Summary:
+- All 5 modules now share one premium design language: layered shadows, gradients, glass, glow and motion — desktop reads as a polished web product, mobile (390px) reads as a native-feeling app; zero data/flow changes, all tests untouched
+- Regression: ESLint clean; tsc shows only pre-existing ScanFlow/bun:test errors; white-box 68/68 + black-box 19/19 pass; browser-verified landing/architecture/planner/ops/client/mobile at 1440+390 — no horizontal scroll, 0 console errors, 0 page errors; scan→verify→save golden path works and appears in audit trail; dev.log clean
+- Screenshots: .zscripts/new-landing-v2.png, new-landing-390.png, new-ops.png, new-ops-390.png, new-client.png, new-mobile-390.png, new-arch.png, new-planner.png, new-assets-390.png

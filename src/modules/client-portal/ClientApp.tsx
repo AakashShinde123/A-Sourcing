@@ -37,11 +37,14 @@ function ClientNav({ clientCode, pendingApprovals, onNavigate }: { clientCode: s
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-3">
         {NAV.map((it) => (
           <button key={it.id} onClick={() => { setClientView(it.id); onNavigate?.() }}
-            className={cn('flex min-h-11 w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition',
-              clientView === it.id ? 'bg-teal-50 text-teal-800 ring-1 ring-inset ring-teal-100' : 'text-zinc-500 hover:bg-zinc-50 hover:text-zinc-800')}>
-            {it.icon}
+            className={cn('relative flex min-h-11 w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition',
+              clientView === it.id
+                ? 'bg-gradient-to-r from-teal-500/[0.14] to-teal-500/[0.04] text-teal-900 ring-1 ring-inset ring-teal-200/80'
+                : 'text-zinc-500 hover:bg-zinc-50 hover:text-zinc-800')}>
+            {clientView === it.id && <span className="absolute -left-3 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-gradient-to-b from-teal-400 to-cyan-500 shadow-[0_0_12px_rgba(20,184,166,0.7)]" aria-hidden />}
+            <span className={cn('transition', clientView === it.id ? 'text-teal-600' : 'text-zinc-400')}>{it.icon}</span>
             <span className="flex-1 text-left">{it.label}</span>
-            {it.id === 'approvals' && pendingApprovals > 0 && <span className="rounded-full bg-orange-500 px-1.5 py-px text-[10px] font-bold text-white">{pendingApprovals}</span>}
+            {it.id === 'approvals' && pendingApprovals > 0 && <span className="rounded-full bg-gradient-to-r from-orange-500 to-amber-500 px-1.5 py-px text-[10px] font-bold text-white shadow-[0_2px_8px_rgba(249,115,22,0.45)]">{pendingApprovals}</span>}
           </button>
         ))}
       </nav>
@@ -67,14 +70,15 @@ export function ClientApp() {
   const pendingApprovals = audits.filter((a) => a.status === 'client_review').length
 
   return (
-    <div className="flex h-dvh bg-zinc-50 text-zinc-900 sm:h-screen">
+    <div className="flex h-dvh bg-zinc-100 text-zinc-900 sm:h-screen">
       {/* Desktop sidebar */}
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-zinc-200 bg-white md:flex">
-        <div className="flex items-center gap-2.5 px-5 pb-4 pt-5">
-          <span className={cn('flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br text-white', 'from-teal-400 to-teal-600')}><QrCode className="h-4 w-4" /></span>
+      <aside className="relative hidden w-60 shrink-0 flex-col border-r border-zinc-200/80 bg-white md:flex">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-teal-500/[0.07] to-transparent" aria-hidden />
+        <div className="relative flex items-center gap-2.5 px-5 pb-4 pt-5">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-teal-400 to-cyan-600 text-white shadow-[0_4px_14px_-4px_rgba(20,184,166,0.7)] ring-1 ring-black/5"><QrCode className="h-4.5 w-4.5" /></span>
           <div className="min-w-0">
             <div className="truncate text-[13px] font-bold tracking-tight text-zinc-900">{client.code} Portal</div>
-            <div className="truncate text-[10px] font-medium uppercase tracking-widest text-zinc-400">{client.name}</div>
+            <div className="truncate text-[9.5px] font-bold uppercase tracking-[0.14em] text-teal-600/90">{client.name}</div>
           </div>
         </div>
         <ClientNav clientCode={client.code} pendingApprovals={pendingApprovals} />
@@ -89,10 +93,10 @@ export function ClientApp() {
             navOpen ? 'translate-x-0' : '-translate-x-full')}>
           <div className="flex items-center justify-between px-5 pb-3 pt-5">
             <div className="flex min-w-0 items-center gap-2.5">
-              <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-white', 'from-teal-400 to-teal-600')}><QrCode className="h-4 w-4" /></span>
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-400 to-cyan-600 text-white shadow-[0_4px_14px_-4px_rgba(20,184,166,0.7)]"><QrCode className="h-4.5 w-4.5" /></span>
               <div className="min-w-0">
                 <div className="truncate text-[13px] font-bold tracking-tight text-zinc-900">{client.code} Portal</div>
-                <div className="truncate text-[10px] font-medium uppercase tracking-widest text-zinc-400">{client.name}</div>
+                <div className="truncate text-[9.5px] font-bold uppercase tracking-[0.14em] text-teal-600/90">{client.name}</div>
               </div>
             </div>
             <button onClick={() => setNavOpen(false)} aria-label="Close navigation menu"
@@ -105,14 +109,14 @@ export function ClientApp() {
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-zinc-200 bg-white/95 px-3 backdrop-blur sm:px-4 lg:px-6">
+        <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between gap-3 border-b border-zinc-200/80 bg-white/80 px-3 backdrop-blur-xl sm:px-4 lg:px-6">
           <div className="flex min-w-0 items-center gap-2.5">
             <button onClick={() => setNavOpen(true)} aria-label="Open navigation menu"
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-zinc-600 ring-1 ring-zinc-200 transition active:bg-zinc-100 md:hidden">
               <Menu className="h-5 w-5" />
             </button>
             <button onClick={() => setSurface('landing')} aria-label="Back to all surfaces" className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-lg transition hover:bg-zinc-100 md:flex">
-              <span className="flex h-7 w-7 items-center justify-center rounded-md bg-teal-500"><QrCode className="h-4 w-4 text-white" /></span>
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-teal-400 to-cyan-600 shadow-[0_2px_8px_rgba(20,184,166,0.4)]"><QrCode className="h-4 w-4 text-white" /></span>
             </button>
             <div className="hidden items-center gap-2 text-[13px] text-zinc-400 md:flex">
               <span>{client.name}</span><span>/</span>
@@ -144,7 +148,7 @@ export function ClientApp() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6">
+        <main className="flex-1 overflow-y-auto bg-gradient-to-b from-zinc-50/60 via-zinc-100/40 to-zinc-100 p-3 sm:p-4 lg:p-6">
           {clientView === 'dashboard' && <ClientDashboard />}
           {clientView === 'audits' && <AuditsView clientIdScope={client.id} />}
           {clientView === 'assets' && <AssetsTable clientIdScope={client.id} title={`${client.code} Asset Register`} />}
@@ -172,9 +176,12 @@ function ClientDashboard() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-lg font-semibold tracking-tight text-zinc-900">{client.name}</h1>
-        <p className="text-[13px] text-zinc-500">Your organization&rsquo;s verification universe — nothing internal is visible here.</p>
+      <div className="card relative overflow-hidden p-5">
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-teal-500/[0.08] via-transparent to-amber-400/[0.06]" aria-hidden />
+        <div className="relative">
+          <h1 className="text-lg font-bold tracking-tight text-zinc-900">{client.name}</h1>
+          <p className="text-[13px] text-zinc-500">Your organization&rsquo;s verification universe — nothing internal is visible here.</p>
+        </div>
       </div>
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <Kpi label="Active Audits" value={active.length} tone="teal" icon={<ClipboardCheck className="h-4 w-4" />} onClick={() => setClientView('audits')} />
@@ -184,7 +191,7 @@ function ClientDashboard() {
       </div>
 
       {hero && (
-        <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+        <div className="card p-4">
           <SectionHeader title="Audit progress" sub={`${hero.code} · ${hero.name} · ${auditStatusMeta[hero.status].label}`} right={
             <button onClick={() => { openAudit(hero.id); setClientView('audits') }} className="text-[13px] font-medium text-teal-700 hover:text-teal-800">Open audit →</button>
           } />
@@ -205,7 +212,7 @@ function ClientDashboard() {
       )}
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+        <div className="card p-4">
           <SectionHeader title="Recent exceptions" right={<button onClick={() => setClientView('exceptions')} className="text-[13px] font-medium text-teal-700">All →</button>} />
           <div className="mt-2 space-y-1.5">
             {exceptions.slice(0, 5).map((e) => (
@@ -217,7 +224,7 @@ function ClientDashboard() {
             {exceptions.length === 0 && <EmptyState title="No exceptions — all clean" />}
           </div>
         </div>
-        <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+        <div className="card p-4">
           <SectionHeader title="Latest reports" right={<button onClick={() => setClientView('reports')} className="text-[13px] font-medium text-teal-700">All →</button>} />
           <div className="mt-2 space-y-1.5">
             {world!.reports.filter((r) => r.clientId === client.id).slice(0, 5).map((r) => (
@@ -288,7 +295,7 @@ function ApprovalsView({ canApprove }: { canApprove: boolean }) {
       {pending.length === 0 && <EmptyState icon={<Stamp className="h-8 w-8" />} title="Nothing awaiting approval" sub="Audits in 'Client Review' will appear here for sign-off." />}
 
       {history.length > 0 && (
-        <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+        <div className="card p-4">
           <MicroLabel>Decision history</MicroLabel>
           <div className="mt-2 space-y-2">
             {history.map((h, i) => (

@@ -83,7 +83,7 @@ export function AssetsTable({ clientIdScope, title = 'Asset Register', sub }: { 
       </div>
 
       {/* Table (tablet and up) */}
-      <div className="hidden overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] md:block">
+      <div className="hidden overflow-hidden card md:block">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] text-[13px]">
             <thead>
@@ -122,7 +122,7 @@ export function AssetsTable({ clientIdScope, title = 'Asset Register', sub }: { 
       <div className="space-y-2 md:hidden">
         {view.map((a) => (
           <button key={a.id} onClick={() => openAsset360(a.id)}
-            className="w-full rounded-xl border border-zinc-200 bg-white p-3.5 text-left shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition active:bg-emerald-50/40">
+            className="w-full card p-3.5 text-left card-hover transition active:bg-emerald-50/40">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="truncate text-[14px] font-semibold text-zinc-900">{a.description}</div>
@@ -140,10 +140,10 @@ export function AssetsTable({ clientIdScope, title = 'Asset Register', sub }: { 
         ))}
       </div>
 
-      {view.length === 0 && <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)]"><EmptyState title="No assets match your filters" sub="Try clearing the search or picking a different category." /></div>}
+      {view.length === 0 && <div className="card p-6"><EmptyState title="No assets match your filters" sub="Try clearing the search or picking a different category." /></div>}
       {/* Pagination — shared by table and cards */}
       {filtered.length > PAGE && (
-        <div className="flex items-center justify-between rounded-xl border border-zinc-200 bg-white px-3 py-2 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+        <div className="flex items-center justify-between card px-3 py-2">
           <MicroLabel>Page {page + 1} of {pages}</MicroLabel>
           <div className="flex gap-1">
             <Button variant="outline" size="icon" className="h-9 w-9" disabled={page === 0} onClick={() => setPage((p) => p - 1)} aria-label="Previous page"><ChevronLeft className="h-4 w-4" /></Button>

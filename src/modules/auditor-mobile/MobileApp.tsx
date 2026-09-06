@@ -131,14 +131,15 @@ export function MobileApp() {
                       </div>
 
                       {/* assignment card */}
-                      <div className="mt-3 rounded-2xl bg-gradient-to-br from-zinc-900 to-zinc-900/40 p-4 ring-1 ring-zinc-800">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-semibold uppercase tracking-widest text-emerald-400">Current assignment</span>
-                          <span className="text-[10px] text-zinc-500">AUD-2025-014</span>
+                      <div className="relative mt-3 overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500/[0.14] via-zinc-900 to-zinc-950 p-4 ring-1 ring-emerald-400/20">
+                        <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-emerald-500/20 blur-3xl" aria-hidden />
+                        <div className="relative flex items-center justify-between">
+                          <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-300">Current assignment</span>
+                          <span className="font-mono text-[10px] text-zinc-500">AUD-2025-014</span>
                         </div>
-                        <div className="mt-1 text-[14px] font-semibold text-white">{assignment.scope}</div>
-                        <div className="mt-0.5 flex items-center gap-1 text-[11px] text-zinc-500"><MapPin className="h-3 w-3" />Meridian Manufacturing · FY 2025–26</div>
-                        <div className="mt-3 flex items-center gap-3">
+                        <div className="relative mt-1 text-[14px] font-semibold text-white">{assignment.scope}</div>
+                        <div className="relative mt-0.5 flex items-center gap-1 text-[11px] text-zinc-500"><MapPin className="h-3 w-3" />Meridian Manufacturing · FY 2025–26</div>
+                        <div className="relative mt-3 flex items-center gap-3">
                           <div className="relative h-16 w-16 shrink-0">
                             <svg viewBox="0 0 64 64" className="h-16 w-16 -rotate-90">
                               <circle cx="32" cy="32" r="27" fill="none" stroke="#27272a" strokeWidth="7" />
@@ -147,9 +148,9 @@ export function MobileApp() {
                             <span className="absolute inset-0 flex items-center justify-center text-[13px] font-bold text-white">{progress}%</span>
                           </div>
                           <div className="grid flex-1 grid-cols-3 gap-1.5 text-center">
-                            <div className="rounded-lg bg-zinc-800/80 py-1.5"><div className="text-[15px] font-bold tabular-nums text-emerald-400">{verifiedCount}</div><div className="text-[9px] text-zinc-500">verified</div></div>
-                            <div className="rounded-lg bg-zinc-800/80 py-1.5"><div className="text-[15px] font-bold tabular-nums text-amber-400">{exceptionCount}</div><div className="text-[9px] text-zinc-500">exceptions</div></div>
-                            <div className="rounded-lg bg-zinc-800/80 py-1.5"><div className="text-[15px] font-bold tabular-nums text-zinc-300">{pendingCount}</div><div className="text-[9px] text-zinc-500">pending</div></div>
+                            <div className="rounded-lg bg-white/[0.06] py-1.5 ring-1 ring-white/[0.06]"><div className="text-[15px] font-bold tabular-nums text-emerald-400">{verifiedCount}</div><div className="text-[9px] text-zinc-500">verified</div></div>
+                            <div className="rounded-lg bg-white/[0.06] py-1.5 ring-1 ring-white/[0.06]"><div className="text-[15px] font-bold tabular-nums text-amber-400">{exceptionCount}</div><div className="text-[9px] text-zinc-500">exceptions</div></div>
+                            <div className="rounded-lg bg-white/[0.06] py-1.5 ring-1 ring-white/[0.06]"><div className="text-[15px] font-bold tabular-nums text-zinc-300">{pendingCount}</div><div className="text-[9px] text-zinc-500">pending</div></div>
                           </div>
                         </div>
                       </div>
@@ -187,7 +188,7 @@ export function MobileApp() {
 
                       {/* big scan button */}
                       <button onClick={() => setTab('scan')}
-                        className="mt-3 flex w-full items-center justify-center gap-3 rounded-2xl bg-emerald-500 py-4 text-zinc-950 shadow-[0_8px_24px_rgba(16,185,129,0.35)] transition active:scale-[0.98]">
+                        className="animate-pulse-ring mt-3 flex w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 py-4 text-zinc-950 shadow-[0_10px_30px_-6px_rgba(16,185,129,0.55)] transition active:scale-[0.98]">
                         <ScanLine className="h-6 w-6" />
                         <span className="text-[16px] font-extrabold tracking-tight">SCAN ASSET</span>
                       </button>
@@ -197,7 +198,7 @@ export function MobileApp() {
                       <div className="mt-4 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Recent verifications</div>
                       <div className="mt-1.5 space-y-1.5">
                         {myVerifs.slice(0, 4).map((v) => (
-                          <div key={v.id} className="flex items-center justify-between rounded-xl bg-zinc-900 px-3 py-2.5 ring-1 ring-zinc-800">
+                          <div key={v.id} className="flex items-center justify-between rounded-xl bg-zinc-900/80 px-3 py-2.5 ring-1 ring-white/[0.06] transition hover:ring-emerald-400/25">
                             <div className="min-w-0">
                               <div className="truncate text-[12px] font-medium text-zinc-200">{v.assetCode}</div>
                               <div className="truncate text-[10px] text-zinc-500">{fmtDateShort(v.verifiedAt)} · {v.method}{v.createdOffline ? ' · offline' : ''}</div>
@@ -283,7 +284,7 @@ export function MobileApp() {
                 </div>
 
                 {/* bottom tab bar */}
-                <div className="flex shrink-0 items-stretch border-t border-zinc-800 bg-zinc-950 pb-[max(0.25rem,env(safe-area-inset-bottom))]">
+                <div className="flex shrink-0 items-stretch border-t border-white/[0.06] bg-zinc-950/90 pb-[max(0.25rem,env(safe-area-inset-bottom))] backdrop-blur-xl">
                   {([
                     ['home', Home, 'Home'], ['assignments', ClipboardList, 'Jobs'],
                     ['scan', ScanLine, 'Scan'], ['exceptions', ShieldAlert, 'Flags'], ['profile', User, 'Profile'],
@@ -292,7 +293,7 @@ export function MobileApp() {
                     if (id === 'scan') {
                       return (
                         <button key={id} onClick={() => setTab('scan')} className="flex flex-1 flex-col items-center justify-center pt-1">
-                          <span className={cn('flex h-9 w-9 items-center justify-center rounded-xl', active ? 'bg-emerald-500' : 'bg-emerald-500/15')}>
+                          <span className={cn('flex h-9 w-9 items-center justify-center rounded-xl shadow-[0_4px_14px_-4px_rgba(16,185,129,0.8)] transition', active ? 'bg-gradient-to-br from-emerald-400 to-teal-500' : 'bg-emerald-500/15')}>
                             <Icon className={cn('h-5 w-5', active ? 'text-zinc-950' : 'text-emerald-400')} />
                           </span>
                           <span className="mt-0.5 text-[9px] font-semibold text-emerald-400">{label}</span>

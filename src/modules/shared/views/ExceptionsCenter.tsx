@@ -88,7 +88,7 @@ export function ExceptionsCenter({ clientIdScope, readOnly = false }: { clientId
         </div>
       </div>
 
-      <div className="hidden overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] md:block">
+      <div className="hidden overflow-hidden card md:block">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[860px] text-[13px]">
             <thead>
@@ -133,7 +133,7 @@ export function ExceptionsCenter({ clientIdScope, readOnly = false }: { clientId
       {/* Card list (phones) — full-width actions instead of table columns */}
       <div className="space-y-2 md:hidden">
         {filtered.map((e) => (
-          <div key={e.id} className="rounded-xl border border-zinc-200 bg-white p-3.5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+          <div key={e.id} className="card card-hover p-3.5">
             <button onClick={() => setSelected(e)} className="w-full text-left">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -162,7 +162,7 @@ export function ExceptionsCenter({ clientIdScope, readOnly = false }: { clientId
         ))}
       </div>
 
-      {filtered.length === 0 && <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)]"><EmptyState title="No exceptions match" sub="Adjust the filters above — or enjoy the clean register." /></div>}
+      {filtered.length === 0 && <div className="card p-6"><EmptyState title="No exceptions match" sub="Adjust the filters above — or enjoy the clean register." /></div>}
 
       {/* Detail sheet */}
       <Sheet open={!!detail} onOpenChange={(o) => !o && setSelected(null)}>

@@ -59,12 +59,12 @@ export function ModuleSwitcher({ current, dark = true, align = 'left', direction
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden />
           <div className={cn(
-            'absolute z-50 w-80 overflow-hidden rounded-xl border border-white/10 bg-zinc-900 shadow-2xl shadow-black/50',
+            'absolute z-50 w-80 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900/95 shadow-2xl shadow-black/60 backdrop-blur-xl',
             align === 'left' ? 'left-0' : 'right-0',
             direction === 'down' ? 'top-11' : 'bottom-11',
           )} role="menu">
-            <div className="border-b border-white/5 px-3.5 py-2.5">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Standalone modules</div>
+            <div className="edge-gradient-top border-b border-white/[0.06] bg-gradient-to-b from-white/[0.04] to-transparent px-3.5 py-2.5">
+              <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400">Standalone modules</div>
               <div className="mt-0.5 text-[11px] text-zinc-500">Each ships & deploys on its own — connected via the Core API</div>
             </div>
             <div className="p-1.5">
@@ -75,7 +75,8 @@ export function ModuleSwitcher({ current, dark = true, align = 'left', direction
                 return (
                   <button key={it.id} role="menuitem"
                     onClick={() => { setOpen(false); setSurface(it.id as 'landing') }}
-                    className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left transition hover:bg-white/5">
+                    className={cn('flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition',
+                      active ? 'bg-white/[0.06] ring-1 ring-white/[0.08]' : 'hover:bg-white/5')}>
                     <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1', a.soft, a.ring)}>
                       <Icon className={cn('h-4 w-4', a.text)} />
                     </span>

@@ -192,7 +192,10 @@ export function DeployPlanner() {
   const a = ACCENT_CLS[stage.accent]
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
+    <div className="relative isolate min-h-screen overflow-x-clip bg-zinc-950 text-zinc-100">
+      <div className="pointer-events-none absolute inset-0 -z-10" aria-hidden>
+        <div className="bg-aurora noise absolute inset-0" />
+      </div>
       {/* Header */}
       <header className="sticky top-0 z-30 border-b border-white/5 bg-zinc-950/85 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 px-4 lg:px-6">
