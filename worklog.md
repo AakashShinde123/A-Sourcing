@@ -234,3 +234,19 @@ Stage Summary:
 - The platform is now genuinely team-only: no public surface, session-gated API, and role-scoped data — CLIENT sees only their org, AUDITOR only their own work with unforgeable attribution, ops workflows are team-only, client removal admin-only. 159 tests green (118 whitebox + 41 blackbox), lint clean, registry healthy at core-api 3.0.0
 - Sample test kit delivered: 4 register files + 32 barcode PNGs + printable label sheet + README — verified end-to-end through the real parser and import endpoint
 - Screenshots: .zscripts/auth-{access-admin,import-sample,client-scoped,client-390,auditor-390,auditor-1440}.png
+
+---
+Task ID: 10
+Agent: Super Z (main)
+Task: User deployed against Neon PostgreSQL and got "Invalid email or password" at login; asked for SQL queries to add users
+
+Work Log:
+- Diagnosed: fresh Postgres has tables (schema was pushed) but ZERO User rows — login 401 "Invalid email or password" is the expected no-such-user answer; accounts only existed in the local SQLite DB and there is no public signup by design
+- Read prisma/schema.prisma (User/Client/Auditor models + FK links), src/lib/auth.ts (bcryptjs cost 12), api/auth/login (email lowercased, generic 401, 5/15min lockout), prisma/seed-users.ts (4 starter accounts)
+- Built scripts/gen_neon_users_sql.ts — hashes the 4 starter passwords with the project's own bcryptjs(12), self-verifies each hash via bcrypt.compare, and writes the SQL file (re-runnable)
+- Generated prisma/neon-users.sql + download/neon-users.sql: idempotent DO block — finds-or-creates Client 'MRD' + Auditor 'arjun.m@…' anchors, upserts 4 users by email (ON CONFLICT DO UPDATE refreshes hash/name/role/active), ends with a verification SELECT
+- DEPLOYMENT.md §4.5: added "No terminal access? Paste prisma/neon-users.sql into Neon SQL Editor" with full inline SQL + fresh-Postgres-has-zero-users warning; §11 troubleshooting rows for "Invalid email or password" (empty User table) and "Account temporarily locked" (15-min lockout); download copy synced
+- No app code changed — pure data fix + docs; 159-test suite untouched
+
+Stage Summary:
+- User can now unblock login in ~2 minutes: Neon Console → SQL Editor → paste download/neon-users.sql → Run, then sign in with admin@easysourcing.in / Admin@2026 (change passwords via Ops → Access). Generator script persisted at scripts/gen_neon_users_sql.ts for future password re-stamps

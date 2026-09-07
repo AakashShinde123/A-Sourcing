@@ -170,6 +170,48 @@ session answers `401`.
 bun prisma/seed-users.ts
 ```
 
+**No terminal access (e.g. Neon dashboard only)?** Paste `prisma/neon-users.sql`
+into the Neon Console → *SQL Editor* → Run instead. It inserts the same four
+accounts with bcrypt(12) hashes already filled in, plus the two anchor rows the
+CLIENT/AUDITOR links need (client `MRD`, auditor `arjun.m@…`). Safe to re-run —
+it never duplicates and re-asserts the starter passwords:
+
+```sql
+DO $$
+DECLARE cid text; aid text;
+BEGIN
+  SELECT "id" INTO cid FROM "Client" WHERE "code" = 'MRD' LIMIT 1;
+  IF cid IS NULL THEN
+    INSERT INTO "Client" ("id","code","name","industry","status","contact","email","phone","city","since","colorSeed")
+    VALUES ('cl_mrd_seed01','MRD','Meridian Industries Pvt Ltd','Manufacturing','active',
+            'Rohit Sharma','rohit@meridian.example','+91 98200 11223','Mumbai',
+            now() - interval '900 days','emerald')
+    RETURNING "id" INTO cid;
+  END IF;
+  SELECT "id" INTO aid FROM "Auditor" WHERE "email" = 'arjun.m@easysourcing.in' LIMIT 1;
+  IF aid IS NULL THEN
+    INSERT INTO "Auditor" ("id","name","email","phone","employeeCode","status","city","colorSeed")
+    VALUES ('aud_arjun_seed01','Arjun Mehta','arjun.m@easysourcing.in','+91 98100 22334',
+            'ES-FLD-004','available','Pune','teal')
+    RETURNING "id" INTO aid;
+  END IF;
+  INSERT INTO "User" ("id","email","passwordHash","name","role","clientId","auditorId","active","lastLoginAt","createdAt")
+  VALUES
+    ('usr_admin_seed01','admin@easysourcing.in','$2b$12$qtOK978EyYzy.2IJC7xUSu4XIcZ59SG.grLY6Qw4O4VtigeYkTnYO','Platform Admin','ADMIN', NULL, NULL, true, NULL, now())
+  , ('usr_ops_seed01','ops@easysourcing.in','$2b$12$1KDA5vuZBUliDkj1rOfvye3rQOf8Alxx99rrAfYiGM4N/tn9OPxCG','Meera Rangan','OPS', NULL, NULL, true, NULL, now())
+  , ('usr_client_seed01','client@easysourcing.in','$2b$12$HcSyYgNaEpZdMR90UDRpbOkFY6cp5FUO/nucbS.tnBf0QAkeoXIVq','Kavita Deshpande','CLIENT', cid, NULL, true, NULL, now())
+  , ('usr_auditor_seed01','auditor@easysourcing.in','$2b$12$U74SqToBFy7XOsLuxzS1YOBsLVoBgSK9/R/lHB3JtkcEynawiAjIK','Arjun Mehta','AUDITOR', NULL, aid, true, NULL, now())
+  ON CONFLICT ("email") DO UPDATE
+    SET "passwordHash" = EXCLUDED."passwordHash", "name" = EXCLUDED."name", "role" = EXCLUDED."role", "active" = true;
+END $$;
+```
+
+> A fresh Postgres/Neon database has tables but **zero users** — every login
+> answers "Invalid email or password" until the accounts above exist. If you
+> also want the demo data (clients/assets/audits) on Neon, run
+> `DATABASE_URL="postgresql://…" bun prisma/seed.ts` from a machine with the
+> repo — never on a real production database.
+
 | Account | Email | Starter password | Role | Sees |
 |---|---|---|---|---|
 | Platform Admin | `admin@easysourcing.in` | `Admin@2026` | ADMIN | everything + Access & Accounts |
@@ -375,6 +417,8 @@ the booted container → build image → tag with module manifest semver → dep
 | `registry` returns `degraded` | DB unreachable / wrong `DATABASE_URL` | check volume mount, path, credentials |
 | `P1003` / `Error: Cannot find module '@prisma/client'` | client not generated in image | ensure `bunx prisma generate` ran (Dockerfile does) |
 | Empty portals after deploy | DB pushed but not seeded | run `bun prisma/seed.ts` (demo only) |
+| "Invalid email or password" on a fresh Postgres/Neon | tables pushed but the `User` table is empty | run `prisma/neon-users.sql` in the Neon SQL Editor (§4.5) |
+| "Account temporarily locked" at login | 5 failed tries on that email in 15 min | wait ~15 min, then sign in with the correct password |
 | Sync returns `applied: 0, rejected: N` | mobile ops failed reference validation | inspect `items[].error` — usually stale audit/asset ids on device |
 | `409 Illegal transition` from UI automation | lifecycle action replayed on moved exception | expected — the state machine rejected a stale click |
 | Port already bound | previous standalone server running | `pkill -f 'server.js'` or change `PORT` |
