@@ -1,12 +1,12 @@
 'use client'
 
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { v4 as uuid } from 'uuid'
 import {
   ScanLine, Camera, MapPin, MapPinOff, CheckCircle2, XCircle, AlertTriangle, ArrowLeft,
-  Search, PackageSearch, Plus, Loader2, RefreshCw, Clock, FileText,
+  Search, PackageSearch, Plus, Loader2, RefreshCw, Clock, CameraOff,
 } from 'lucide-react'
 import { useES } from '@/modules/shared/store'
 import type { Asset, Assignment, QueueOp } from '@/modules/shared/types'
@@ -23,11 +23,35 @@ const RESULTS = [
 ] as const
 
 type Stage = 'viewfinder' | 'asset' | 'saving' | 'done'
+type CamState = 'idle' | 'starting' | 'live' | 'denied' | 'insecure' | 'error'
 
-function captureGps() {
-  const lat = 18.5204 + (Math.random() - 0.5) * 0.002
-  const lng = 73.8567 + (Math.random() - 0.5) * 0.002
-  return { lat, lng, acc: +(2.5 + Math.random() * 5).toFixed(1) }
+/** Real GPS stamp — resolves null (→ "GPS unavailable") on denial/timeout. */
+function realGps(): Promise<{ lat: number; lng: number; acc: number } | null> {
+  return new Promise((resolve) => {
+    if (typeof navigator === 'undefined' || !('geolocation' in navigator)) return resolve(null)
+    navigator.geolocation.getCurrentPosition(
+      (p) => resolve({ lat: +p.coords.latitude.toFixed(6), lng: +p.coords.longitude.toFixed(6), acc: +(p.coords.accuracy || 0).toFixed(1) }),
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: 7000, maximumAge: 30000 },
+    )
+  })
+}
+
+/** Downscale a captured photo to a compact JPEG dataURL (evidence payload stays small). */
+async function shrinkPhoto(file: File): Promise<string | null> {
+  try {
+    const url = URL.createObjectURL(file)
+    const img = new Image()
+    await new Promise<void>((res, rej) => { img.onload = () => res(); img.onerror = () => rej(new Error('decode')); img.src = url })
+    const max = 640
+    const scale = Math.min(1, max / Math.max(img.width, img.height))
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(1, Math.round(img.width * scale))
+    canvas.height = Math.max(1, Math.round(img.height * scale))
+    canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
+    URL.revokeObjectURL(url)
+    return canvas.toDataURL('image/jpeg', 0.55)
+  } catch { return null }
 }
 
 export function ScanFlow({ onExit, online, scope }: { onExit: () => void; online: boolean; scope: Assignment | null }) {
@@ -39,10 +63,18 @@ export function ScanFlow({ onExit, online, scope }: { onExit: () => void; online
   const [photos, setPhotos] = useState<string[]>([])
   const [remarks, setRemarks] = useState('')
   const [gps, setGps] = useState<{ lat: number; lng: number; acc: number } | null>(null)
+  const [gpsLocating, setGpsLocating] = useState(false)
   const [searchQ, setSearchQ] = useState('')
   const [savedResult, setSavedResult] = useState<string | null>(null)
   const [disc, setDisc] = useState({ description: '', make: '', model: '', serial: '', condition: 'good' })
-  const scanTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // real camera state
+  const [cam, setCam] = useState<CamState>('idle')
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const loopFlag = useRef<{ stop: boolean }>({ stop: true })
+  const lastToast = useRef<{ text: string; at: number }>({ text: '', at: 0 })
+  const photoInputRef = useRef<HTMLInputElement | null>(null)
 
   // The active field scope is owned by MobileApp (scope switcher on the hero);
   // ScanFlow purely verifies within it.
@@ -51,20 +83,144 @@ export function ScanFlow({ onExit, online, scope }: { onExit: () => void; online
   const myAssets = useMemo(() => (world && asgId ? world.assets.filter((a) => a.assignmentId === asgId) : []), [world, asgId])
   const verifiedIds = useMemo(() => new Set((world?.verifications ?? []).filter((v) => v.assignmentId === asgId).map((v) => v.assetId)), [world, asgId])
   const pending = useMemo(() => myAssets.filter((a) => !verifiedIds.has(a.id)), [myAssets, verifiedIds])
+  // Scopes published to ME (for precise "wrong scope" hints) — empty for ops preview accounts.
+  const myScopes = useMemo(
+    () => (world && user?.auditorId ? world.assignments.filter((x) => x.auditorId === user.auditorId) : []),
+    [world, user],
+  )
 
-  // fake camera lock-on
+  /** Resolve a scanned/typed value against the register: barcode → code → client ERP id. */
+  const resolveAsset = useCallback(
+    (raw: string): Asset | null => {
+      const v = raw.trim().toLowerCase()
+      if (!v || !world) return null
+      return world.assets.find((a) => [a.barcode, a.code, a.clientAssetId].some((f) => f?.toLowerCase() === v)) ?? null
+    },
+    [world],
+  )
+
+  function stopCamera() {
+    loopFlag.current.stop = true
+    const stream = streamRef.current
+    if (stream) { stream.getTracks().forEach((t) => t.stop()); streamRef.current = null }
+    if (videoRef.current) videoRef.current.srcObject = null
+    setCam('idle')
+  }
+
+  /** A decoded value opened the verify card? (false → keep scanning) */
+  const handleDecoded = useCallback(
+    (text: string): boolean => {
+      const raw = text.trim()
+      if (!raw) return false
+      const hit = resolveAsset(raw)
+      if (hit && hit.assignmentId === asgId) {
+        openAsset(hit)
+        return true
+      }
+      const now = Date.now()
+      const fresh = lastToast.current.text !== raw || now - lastToast.current.at > 4000
+      if (fresh) {
+        lastToast.current = { text: raw, at: now }
+        if (!hit) {
+          toast.error(`Tag “${raw.slice(0, 24)}” is not in the register`, { description: 'Clean the tag and rescan, or use Manual to search by name/serial.' })
+        } else {
+          const mineScope = myScopes.find((x) => x.id === hit.assignmentId)
+          toast.warning(`${hit.code} is outside the current scope`, {
+            description: mineScope ? `Switch scope on the home screen — it belongs to “${mineScope.scope}”.` : 'This asset is not linked to any field scope yet — ask ops to assign it.',
+          })
+        }
+      }
+      return false
+    },
+    [resolveAsset, asgId, myScopes],
+  )
+
+  function openAsset(a: Asset) {
+    stopCamera()
+    setAsset(a); setStage('asset'); setResult(null); setPhotos([]); setRemarks(''); setGps(null)
+    setGpsLocating(true)
+    realGps().then((g) => { setGps(g); setGpsLocating(false) })
+  }
+
+  // Real camera lifecycle: on while the viewfinder is visible, off otherwise.
   useEffect(() => {
-    if (tab === 'scan' && stage === 'viewfinder' && assignment) {
-      scanTimer.current = setTimeout(() => {
-        const target = pending[0] ?? null
-        if (!target) { toast.info('All assets in this scope are verified', { description: 'Try Floor-to-Sheet discovery instead.' }); return }
-        setAsset(target); setStage('asset'); setGps(captureGps()); setResult(null); setPhotos([]); setRemarks('')
-      }, 1900)
-      return () => { if (scanTimer.current) clearTimeout(scanTimer.current) }
+    let cancelled = false
+    async function start() {
+      if (typeof window === 'undefined') return
+      if (!window.isSecureContext) { setCam('insecure'); return }
+      if (!navigator.mediaDevices?.getUserMedia) { setCam('error'); return }
+      setCam('starting')
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false,
+        })
+        if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return }
+        streamRef.current = stream
+        const video = videoRef.current
+        if (video) {
+          video.srcObject = stream
+          video.muted = true
+          try { await video.play() } catch { /* autoplay guard — user gesture already happened */ }
+        }
+        if (cancelled) return
+        setCam('live')
+        decodeLoop()
+      } catch (e) {
+        if (cancelled) return
+        const name = (e as DOMException)?.name
+        setCam(name === 'NotAllowedError' || name === 'SecurityError' ? 'denied' : 'error')
+      }
     }
-  }, [tab, stage, pending, assignment])
+    async function decodeLoop() {
+      const flag = { stop: false }
+      loopFlag.current = flag
+      const video = videoRef.current
+      if (!video) return
+      // Native BarcodeDetector (Chrome/Android) → zero-dep fast path; zxing everywhere else (iOS Safari).
+      let detector: { detect: (src: CanvasImageSource) => Promise<{ rawValue: string }[]> } | null = null
+      if ('BarcodeDetector' in window) {
+        try {
+          const BD = (window as unknown as { BarcodeDetector: new (o?: { formats?: string[] }) => { detect: (s: CanvasImageSource) => Promise<{ rawValue: string }[]> } }).BarcodeDetector
+          try { detector = new BD({ formats: ['qr_code', 'code_128', 'code_39', 'ean_13', 'ean_8', 'itf', 'upc_a', 'upc_e'] }) }
+          catch { detector = new BD() }
+        } catch { detector = null }
+      }
+      let zxing: { decodeFromCanvas: (c: HTMLCanvasElement) => { getText: () => string } } | null = null
+      if (!detector) {
+        try { const ZX = await import('@zxing/library'); zxing = new ZX.BrowserMultiFormatReader() as unknown as typeof zxing }
+        catch { zxing = null }
+      }
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d', { willReadFrequently: true })
+      const tick = async () => {
+        while (!flag.stop) {
+          const v = videoRef.current
+          if (!v || v.readyState < 2) { await new Promise((r) => setTimeout(r, 300)); continue }
+          try {
+            let text: string | null = null
+            if (detector) {
+              const codes = await detector.detect(v)
+              if (codes.length) text = codes[0].rawValue
+            } else if (zxing && ctx) {
+              if (canvas.width !== v.videoWidth && v.videoWidth) { canvas.width = v.videoWidth; canvas.height = v.videoHeight }
+              ctx.drawImage(v, 0, 0)
+              try { text = zxing.decodeFromCanvas(canvas).getText() } catch { /* NotFoundException — no code in frame */ }
+            }
+            if (text && handleDecoded(text)) return
+          } catch { /* keep scanning */ }
+          await new Promise((r) => setTimeout(r, 350))
+        }
+      }
+      tick()
+    }
+    if (tab === 'scan' && stage === 'viewfinder' && assignment) start()
+    return () => { cancelled = true; stopCamera() }
+  }, [tab, stage, assignment])
 
-  function reset() { setStage('viewfinder'); setAsset(null); setResult(null); setPhotos([]); setRemarks('') }
+  useEffect(() => () => stopCamera(), []) // final unmount safety
+
+  function reset() { setStage('viewfinder'); setAsset(null); setResult(null); setPhotos([]); setRemarks(''); setGps(null) }
 
   async function buildAndSave(res: string, discovery?: Partial<QueueOp['discovery']>) {
     if (!world || !assignment) return
@@ -104,11 +260,26 @@ export function ScanFlow({ onExit, online, scope }: { onExit: () => void; online
     setStage('done')
   }
 
+  // Manual search: fuzzy list + EXACT-match resolution with precise scope feedback.
+  const exact = useMemo(() => resolveAsset(searchQ), [searchQ, resolveAsset])
+  const exactInScope = !!exact && exact.assignmentId === asgId
+  const exactMineScope = exact ? myScopes.find((x) => x.id === exact.assignmentId) : undefined
   const searchResults = useMemo(() => {
     const n = searchQ.trim().toLowerCase()
     if (!n) return myAssets.slice(0, 4)
     return myAssets.filter((a) => [a.code, a.description, a.serialNumber, a.custodian, a.locationLabel, a.barcode].some((f) => f?.toLowerCase().includes(n))).slice(0, 6)
   }, [myAssets, searchQ])
+
+  async function onPhotoPicked(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    const data = await shrinkPhoto(file)
+    if (data) setPhotos((p) => (p.length >= 3 ? p : [...p, data]))
+    else toast.error('Could not read that photo — try again')
+  }
+
+  const camBadge = cam === 'live' ? 'Scanning…' : cam === 'starting' ? 'Starting camera…' : 'Camera off'
 
   return (
     <div className="flex h-full flex-col bg-[#f4f7f3] text-zinc-900">
@@ -136,24 +307,40 @@ export function ScanFlow({ onExit, online, scope }: { onExit: () => void; online
           </div>
 
           {tab === 'scan' && (
-            <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6">
-              {/* camera viewport — intentionally dark, like every real camera app */}
-              <div className="relative h-52 w-52">
+            <div className="flex flex-1 flex-col items-center gap-4 px-4 pt-3">
+              {/* LIVE camera viewport */}
+              <div className="relative h-60 w-full max-w-[300px]">
                 <div className="absolute inset-0 overflow-hidden rounded-3xl bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-900 shadow-[0_16px_40px_-14px_rgba(6,78,59,0.5)] ring-1 ring-zinc-900/20">
-                  <div className="absolute inset-0 opacity-25" style={{ backgroundImage: 'radial-gradient(circle at 25% 25%, rgba(255,255,255,0.25) 1px, transparent 1px)', backgroundSize: '26px 26px' }} />
+                  <video ref={videoRef} playsInline muted autoPlay
+                    className={cn('h-full w-full object-cover transition-opacity duration-300', cam === 'live' ? 'opacity-100' : 'opacity-0')} />
+                  {cam !== 'live' && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-5 text-center">
+                      {cam === 'starting' && <><Loader2 className="h-7 w-7 animate-spin text-emerald-400" /><div className="text-[12px] font-medium text-zinc-300">Starting camera…</div></>}
+                      {cam === 'denied' && <><CameraOff className="h-7 w-7 text-amber-400" /><div className="text-[12px] font-semibold text-zinc-200">Camera blocked</div><div className="text-[10.5px] leading-relaxed text-zinc-400">Tap the lock or ⓘ icon next to the site address → Camera → <b>Allow</b>, then reload. Or use Manual below.</div></>}
+                      {cam === 'insecure' && <><CameraOff className="h-7 w-7 text-amber-400" /><div className="text-[12px] font-semibold text-zinc-200">Needs HTTPS</div><div className="text-[10.5px] leading-relaxed text-zinc-400">The camera only works on a secure connection — open the app via its <b>https://</b> link, or use Manual below.</div></>}
+                      {cam === 'error' && <><AlertTriangle className="h-7 w-7 text-amber-400" /><div className="text-[12px] font-semibold text-zinc-200">Camera unavailable</div><div className="text-[10.5px] leading-relaxed text-zinc-400">No camera was found, or another app is using it. Use Manual below instead.</div></>}
+                      {cam === 'idle' && <><ScanLine className="h-7 w-7 text-emerald-400/80" /><div className="text-[12px] font-medium text-zinc-300">Preparing viewfinder…</div></>}
+                    </div>
+                  )}
+                  {/* framing brackets + scanline (live only) */}
+                  {cam === 'live' && (
+                    <>
+                      <div className="absolute -left-1 -top-1 h-8 w-8 rounded-tl-2xl border-l-4 border-t-4 border-emerald-500" />
+                      <div className="absolute -right-1 -top-1 h-8 w-8 rounded-tr-2xl border-r-4 border-t-4 border-emerald-500" />
+                      <div className="absolute -bottom-1 -left-1 h-8 w-8 rounded-bl-2xl border-b-4 border-l-4 border-emerald-500" />
+                      <div className="absolute -bottom-1 -right-1 h-8 w-8 rounded-br-2xl border-b-4 border-r-4 border-emerald-500" />
+                      <div className="absolute left-3 right-3 h-0.5 animate-[scanline_1.8s_ease-in-out_infinite] rounded bg-emerald-400 shadow-[0_0_12px_2px_rgba(52,211,153,0.8)]" />
+                    </>
+                  )}
                 </div>
-                <div className="absolute -left-1 -top-1 h-8 w-8 rounded-tl-2xl border-l-4 border-t-4 border-emerald-500" />
-                <div className="absolute -right-1 -top-1 h-8 w-8 rounded-tr-2xl border-r-4 border-t-4 border-emerald-500" />
-                <div className="absolute -bottom-1 -left-1 h-8 w-8 rounded-bl-2xl border-b-4 border-l-4 border-emerald-500" />
-                <div className="absolute -bottom-1 -right-1 h-8 w-8 rounded-br-2xl border-b-4 border-r-4 border-emerald-500" />
-                <div className="absolute left-3 right-3 h-0.5 animate-[scanline_1.8s_ease-in-out_infinite] rounded bg-emerald-400 shadow-[0_0_12px_2px_rgba(52,211,153,0.8)]" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <ScanLine className="h-10 w-10 text-emerald-400/80" />
+                <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-zinc-900 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-emerald-300 shadow-md">
+                  {cam === 'live' ? '◉ Live — point at the QR tag' : camBadge}
                 </div>
               </div>
-              <div className="text-center">
+
+              <div className="mt-2 text-center">
                 <div className="text-[13px] font-semibold text-zinc-800">Point camera at the asset QR tag</div>
-                <div className="mt-1 text-[11px] text-zinc-500">Works offline — asset data is cached on device</div>
+                <div className="mt-1 text-[11px] text-zinc-500">Detects QR & barcodes · works offline — register is cached on device</div>
               </div>
               <div className="rounded-xl bg-white px-3.5 py-2.5 text-center shadow-sm ring-1 ring-zinc-900/[0.06]">
                 <div className="text-[10px] font-bold uppercase tracking-widest text-emerald-700">Scope cached</div>
@@ -164,14 +351,46 @@ export function ScanFlow({ onExit, online, scope }: { onExit: () => void; online
           )}
 
           {tab === 'search' && (
-            <div className="flex-1 space-y-2 overflow-y-auto px-4 pt-3">
+            <div className="flex-1 space-y-2 overflow-y-auto px-4 pt-3 pb-4">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                <input value={searchQ} onChange={(e) => setSearchQ(e.target.value)} placeholder="Asset ID, serial, description, custodian…"
+                <input value={searchQ} onChange={(e) => setSearchQ(e.target.value)} inputMode="search" autoComplete="off"
+                  placeholder="Type asset code, QR value, serial, name…"
                   className="w-full rounded-xl border border-zinc-200 bg-white py-2.5 pl-9 pr-3 text-[13px] text-zinc-900 shadow-sm outline-none placeholder:text-zinc-400 focus:border-emerald-500 focus:shadow-[0_0_0_3px_rgba(16,185,129,0.12)]" />
               </div>
+
+              {/* EXACT match — resolves what the user typed with precise feedback */}
+              {exact && !exactInScope && (
+                <div className="rounded-xl bg-amber-50 p-3 ring-1 ring-amber-500/30">
+                  <div className="flex items-center gap-2 text-[12px] font-bold text-amber-800"><AlertTriangle className="h-4 w-4" /> {exact.code} exists — but not in this scope</div>
+                  <p className="mt-1 text-[11.5px] leading-relaxed text-amber-700">
+                    {exactMineScope
+                      ? `It belongs to “${exactMineScope.scope}”. Go to Home and switch the field scope to verify it.`
+                      : 'This asset is not linked to any field scope yet — ask your ops team to assign it.'}
+                  </p>
+                </div>
+              )}
+              {exact && exactInScope && (
+                <button onClick={() => openAsset(exact)}
+                  className="flex w-full items-center gap-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 p-3.5 text-left text-white shadow-[0_10px_28px_-8px_rgba(13,148,136,0.7)] transition active:scale-[0.99]">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/15"><ScanLine className="h-4.5 w-4.5" /></span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[13.5px] font-bold">Verify {exact.code} now</span>
+                    <span className="block truncate text-[11px] text-white/85">{exact.description}</span>
+                  </span>
+                  <XCircle className="h-4 w-4 rotate-45 opacity-70" />
+                </button>
+              )}
+
+              {myAssets.length === 0 && (
+                <div className="rounded-xl bg-white p-3.5 text-center ring-1 ring-zinc-900/[0.06]">
+                  <div className="text-[12px] font-bold text-zinc-800">No assets are linked to this scope yet</div>
+                  <p className="mt-1 text-[11.5px] leading-relaxed text-zinc-500">Ops links assets automatically when a field scope is published. Ask your ops team to assign this location to you.</p>
+                </div>
+              )}
+
               {searchResults.map((a) => (
-                <button key={a.id} onClick={() => { setAsset(a); setStage('asset'); setGps(captureGps()) }}
+                <button key={a.id} onClick={() => openAsset(a)}
                   className="flex w-full items-center gap-3 rounded-xl bg-white p-3 text-left shadow-sm ring-1 ring-zinc-900/[0.06] transition hover:ring-emerald-500/50">
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-[13px] font-semibold text-zinc-900">{a.description}</div>
@@ -180,6 +399,12 @@ export function ScanFlow({ onExit, online, scope }: { onExit: () => void; online
                   <div className="text-right text-[10px] text-zinc-500">{a.locationLabel}</div>
                 </button>
               ))}
+              {searchQ.trim() && !exact && searchResults.length === 0 && myAssets.length > 0 && (
+                <div className="rounded-xl bg-white p-3.5 text-center ring-1 ring-zinc-900/[0.06]">
+                  <div className="text-[12px] font-semibold text-zinc-700">No asset matches “{searchQ.trim().slice(0, 24)}” in this scope</div>
+                  <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">Check the tag value, or use Discovery if the asset is missing from the register.</p>
+                </div>
+              )}
             </div>
           )}
 
@@ -221,7 +446,9 @@ export function ScanFlow({ onExit, online, scope }: { onExit: () => void; online
           {/* expected data */}
           <div className="rounded-2xl bg-white p-4 shadow-[0_10px_30px_-12px_rgba(6,78,59,0.25)] ring-1 ring-emerald-500/40">
             <div className="flex items-center justify-between">
-              <span className="rounded-md bg-gradient-to-r from-emerald-500 to-teal-600 px-2 py-0.5 font-mono text-[10px] font-bold text-white">QR MATCH</span>
+              <span className="rounded-md bg-gradient-to-r from-emerald-500 to-teal-600 px-2 py-0.5 font-mono text-[10px] font-bold text-white">
+                {tab === 'scan' ? 'QR MATCH' : 'MANUAL MATCH'}
+              </span>
               <span className="font-mono text-[11px] font-semibold text-zinc-500">{asset.code}</span>
             </div>
             <div className="mt-2 text-[15px] font-bold leading-snug text-zinc-900">{asset.description}</div>
@@ -234,16 +461,20 @@ export function ScanFlow({ onExit, online, scope }: { onExit: () => void; online
           </div>
 
           {/* evidence chips */}
-          <div className="mt-3 flex items-center gap-2">
-            <div className={cn('flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold ring-1', gps ? 'bg-emerald-50 text-emerald-700 ring-emerald-500/25' : 'bg-white text-zinc-500 ring-zinc-200')}>
-              {gps ? <MapPin className="h-3.5 w-3.5" /> : <MapPinOff className="h-3.5 w-3.5" />}
-              {gps ? `${gps.lat.toFixed(5)}, ${gps.lng.toFixed(5)} ±${gps.acc}m` : 'GPS unavailable'}
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <div className={cn('flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold ring-1',
+              gpsLocating ? 'bg-sky-50 text-sky-700 ring-sky-500/25' : gps ? 'bg-emerald-50 text-emerald-700 ring-emerald-500/25' : 'bg-white text-zinc-500 ring-zinc-200')}>
+              {gpsLocating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : gps ? <MapPin className="h-3.5 w-3.5" /> : <MapPinOff className="h-3.5 w-3.5" />}
+              {gpsLocating ? 'Locating…' : gps ? `${gps.lat.toFixed(5)}, ${gps.lng.toFixed(5)} ±${gps.acc}m` : 'GPS unavailable'}
             </div>
-            <button onClick={() => setPhotos((p) => (p.length >= 3 ? p : [...p, ['emerald', 'teal', 'amber'][p.length]]))}
-              className="flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1.5 text-[11px] font-semibold text-zinc-700 ring-1 ring-zinc-200 active:scale-95">
-              <Camera className="h-3.5 w-3.5" /> Photo {photos.length ? `(${photos.length})` : ''}
+            <input ref={photoInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onPhotoPicked} />
+            <button onClick={() => photoInputRef.current?.click()} disabled={photos.length >= 3}
+              className="flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1.5 text-[11px] font-semibold text-zinc-700 ring-1 ring-zinc-200 active:scale-95 disabled:opacity-50">
+              <Camera className="h-3.5 w-3.5" /> Photo {photos.length ? `(${photos.length}/3)` : ''}
             </button>
-            {photos.map((p, i) => <span key={i} className={cn('h-6 w-6 rounded-md bg-gradient-to-br shadow-sm', p === 'emerald' ? 'from-emerald-400 to-teal-600' : p === 'teal' ? 'from-teal-400 to-cyan-600' : 'from-amber-400 to-orange-500')} />)}
+            {photos.map((p, i) => (
+              <img key={i} src={p} alt={`Evidence ${i + 1}`} className="h-9 w-9 rounded-md object-cover ring-1 ring-zinc-300" />
+            ))}
           </div>
 
           <input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Remarks (optional)"

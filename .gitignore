@@ -52,3 +52,15 @@ prompt
 server.log
 # Skills directory
 /skills/
+# local data & workspace artifacts (never publish)
+db/
+/tool-results/
+/download/
+/upload/
+/skills/
+/examples/
+/mini-services/
+/.zscripts/
+/.agent-browser/
+.env*
+worklog.md

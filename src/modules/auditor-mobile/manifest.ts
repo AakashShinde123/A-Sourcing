@@ -4,7 +4,7 @@ import type { ModuleManifest } from '../shared/module-contract'
 export const AUDITOR_MOBILE_MANIFEST: ModuleManifest = {
   id: 'auditor-mobile',
   name: 'Auditor Mobile',
-  version: '2.1.1',
+  version: '2.2.0',
   kind: 'mobile',
   tagline: 'Offline-first field verification in 10–20 seconds',
   description:

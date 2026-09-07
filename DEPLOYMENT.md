@@ -81,12 +81,17 @@ any phone, install the Auditor app from, and scan with the camera.
 
 **One-time preparation (on your computer):**
 
-1. **Point the project at Postgres** (skip if your copy already did this for
-   Neon):
+1. **Database engine — handled automatically.** The repo ships both Prisma
+   schemas (`prisma/schema.prisma` for local SQLite, `prisma/schema.postgres.prisma`
+   for Postgres) and `scripts/prisma-generate.mjs` picks the right one from
+   `DATABASE_URL` at build time — so Vercel gets the Postgres client and your
+   laptop keeps SQLite with **zero manual edits**. To create the tables in Neon
+   from your machine:
    ```bash
-   bun scripts/use-db.ts postgres     # flips provider in prisma/schema.prisma
-   bun run db:push                    # creates tables in Neon (set DATABASE_URL first)
+   bun run db:push:pg                 # push schema to Neon (set DATABASE_URL first)
    ```
+   (Skip both if your Neon tables already exist — you did this when you first
+   connected Neon.)
 2. **Make sure login accounts exist** — run `prisma/neon-users.sql` in
    Neon Console → SQL Editor (see §4.5). Skip if you already did this.
 3. **Push the code to GitHub** (free):

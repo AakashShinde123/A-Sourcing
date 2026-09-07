@@ -8,6 +8,7 @@ import { Search, ChevronLeft, ChevronRight, Download, QrCode, FileUp } from 'luc
 import { toast } from 'sonner'
 import { useES } from '@/modules/shared/store'
 import { ImportRegisterDialog } from '@/modules/shared/views/ImportRegisterDialog'
+import { LabelsDialog } from '@/modules/shared/views/LabelsDialog'
 import { Pill, SimpleBadge, EmptyState, MicroLabel } from '@/modules/shared/ui-bits'
 import { assetStatusMeta, conditionMeta, fmtDateShort, fmtMoneyShort } from '@/modules/shared/format'
 import type { Asset } from '@/modules/shared/types'
@@ -15,13 +16,15 @@ import type { Asset } from '@/modules/shared/types'
 const PAGE = 12
 
 export function AssetsTable({ clientIdScope, title = 'Asset Register', sub }: { clientIdScope?: string; title?: string; sub?: string }) {
-  const { world, openAsset360 } = useES()
+  const { world, openAsset360, user } = useES()
   const [q, setQ] = useState('')
   const [clientF, setClientF] = useState('all')
   const [catF, setCatF] = useState('all')
   const [statusF, setStatusF] = useState('all')
   const [page, setPage] = useState(0)
   const [importOpen, setImportOpen] = useState(false)
+  const [labelsOpen, setLabelsOpen] = useState(false)
+  const isOps = user?.role === 'ADMIN' || user?.role === 'OPS'
 
   const assets = useMemo(
     () => (clientIdScope ? world!.assets.filter((a) => a.clientId === clientIdScope) : world!.assets),
@@ -52,6 +55,11 @@ export function AssetsTable({ clientIdScope, title = 'Asset Register', sub }: { 
           <p className="text-[13px] text-zinc-500">{sub ?? `${filtered.length} of ${assets.length} assets · click any row for Asset 360`}</p>
         </div>
         <div className="flex items-center gap-2">
+          {isOps && (
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setLabelsOpen(true)} disabled={filtered.length === 0}>
+              <QrCode className="h-3.5 w-3.5" /> Print QR labels
+            </Button>
+          )}
           <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setImportOpen(true)}>
             <FileUp className="h-3.5 w-3.5" /> Import register
           </Button>
@@ -155,6 +163,13 @@ export function AssetsTable({ clientIdScope, title = 'Asset Register', sub }: { 
         defaultClientId={clientF !== 'all' ? clientF : undefined}
         lockClient={clientIdScope}
       />
+      {isOps && (
+        <LabelsDialog
+          open={labelsOpen}
+          onOpenChange={setLabelsOpen}
+          assets={filtered.map((a) => ({ id: a.id, code: a.code, description: a.description, barcode: a.barcode }))}
+        />
+      )}
       {/* Pagination — shared by table and cards */}
       {filtered.length > PAGE && (
         <div className="flex items-center justify-between card px-3 py-2">

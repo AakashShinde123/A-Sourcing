@@ -63,7 +63,7 @@ export const SHARED_KERNEL = {
 export const CORE_API_MANIFEST: ModuleManifest = {
   id: 'core-api',
   name: 'Core API Service',
-  version: '3.1.0',
+  version: '3.2.0',
   kind: 'service',
   tagline: 'The single source of truth every module talks to',
   description:
@@ -79,6 +79,7 @@ export const CORE_API_MANIFEST: ModuleManifest = {
     { method: 'POST', path: '/api/core/approvals', purpose: 'Client sign-off — CLIENT scoped to own audits, identity from session' },
     { method: 'POST', path: '/api/core/reports', purpose: 'Report generate / finalize — team only' },
     { method: 'POST', path: '/api/core/assets/import', purpose: 'Register intake (idempotent) — team only' },
+    { method: 'GET', path: '/api/core/assets/labels', purpose: 'Printable A4 QR label sheet for picked assets — team only' },
     { method: 'POST', path: '/api/core/auditors', purpose: 'Add field team member — team only' },
     { method: 'PATCH', path: '/api/core/auditors', purpose: 'Team member status / contact — team only' },
     { method: 'DELETE', path: '/api/core/auditors', purpose: 'Remove member — team only, 409 if history' },
