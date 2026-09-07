@@ -2,7 +2,7 @@
 
 **Platform:** Asset Physical Verification, Audit & Reconciliation Suite
 **Stack:** Next.js 16 (App Router, standalone output) · TypeScript 5 · Tailwind CSS 4 + shadcn/ui · Prisma ORM · Bun
-**Test status at time of writing:** 68 white-box + 19 black-box tests passing (87/87), ESLint clean
+**Test status at time of writing:** 128 white-box + 41 black-box tests passing (169/169), ESLint clean
 
 ---
 
@@ -42,24 +42,24 @@ change — only **where they run** changes.
 
 | Team size | Stage | Recommended platform | Est. infra cost | Ops burden |
 |---|---|---|---|---|
-| ≤ 15 (**you today: 10**) | 1 · Launch | One always-free or low-cost VM + `docker compose` + Caddy (both ship in the repo), SQLite on a mounted volume + nightly off-box backup | **₹0 free path** · ₹700–2,500/mo paid | 2–4 h/week, one person part-time |
+| ≤ 15 (**you today: 10**) | 1 · Launch | **Vercel Hobby (one free project hosts all five modules) + Neon free Postgres** — see §1.2. Alternative: always-free VM (Oracle ARM) + `docker compose` + Caddy (both ship in the repo) | **₹0 free path** · ₹700–2,500/mo paid | ≈0 h/week (git push deploys) |
 | 16–50 | 2 · Scale | Vercel (one project per portal) + Fly.io/Railway for the Core API (2+ instances) + Neon/Supabase Postgres + R2/S3 for evidence photos | ₹5,000–12,000/mo | ≈1 h/week |
 | 51+ | 3 · Expansion | AWS ECS Fargate (one service per module image) + RDS Postgres Multi-AZ + CloudFront/S3, ap-south-1 primary + DR region | ₹40,000+/mo | 0.5–1 FTE DevOps |
 
 The short version of the migration logic (full trigger lists in the planner):
 
 - **Starting phase (₹0): free tiers that genuinely fit Stage 1** —
-  **Oracle Cloud Always Free** (ARM VM, 4 cores/24 GB, Mumbai region, free forever)
-  runs the whole Docker Compose stack at zero cost; **GCP `e2-micro`** / **AWS free
-  tier** are alternatives if you already hold accounts. Frontends can also sit on
-  **Vercel Hobby (₹0)** while usage is small — Hobby terms are non-commercial, so
-  step up to Pro ($20/seat) or the VM path when the business outgrows it. When
-  SQLite is outgrown, **Neon/Supabase free Postgres (0.5 GB)** is the §4.3
-  env-var swap — still ₹0. Total starting-phase bill: **₹0/month + a domain
-  (~₹800/yr)**.
+  **Vercel Hobby (₹0) + Neon free Postgres (₹0)** is the fastest start: one free
+  Vercel project serves Hub, Ops, Client, the Auditor PWA **and** the Core API
+  routes, and your Neon database is already connected. Full click-by-click
+  walkthrough in **§1.2**. If/when you prefer to own the box, **Oracle Cloud
+  Always Free** (ARM VM, 4 cores/24 GB, Mumbai, free forever) runs the whole
+  Docker Compose stack at zero cost. When the business starts billing on the
+  platform, step up to Vercel Pro ($20/seat) or the VM path — Hobby terms are
+  non-commercial. Total starting-phase bill: **₹0/month + a domain (~₹800/yr)**.
 
 - **Stay on Stage 1 until downtime matters** — two teams colliding on deploys,
-  `POST /verify` p95 > 2 s (SQLite write contention), or a client SLA demand.
+  `POST /verify` p95 > 2 s (Neon free compute saturated), or a client SLA demand.
   Do **not** start with Kubernetes at 10 people: it costs more human hours
   than the ₹2k VPS saves.
 - **Stage 2 splits frontends from the API and buys managed services** — each
@@ -71,6 +71,107 @@ The short version of the migration logic (full trigger lists in the planner):
 
 The rule that keeps all three stages cheap: modules never import each other —
 moving house means changing only the `deploy.target` in each manifest.
+
+### 1.2 Deploy for FREE in ~15 minutes (Vercel + Neon) — recommended start
+
+One free Vercel project hosts **all five modules** (they are surfaces of one
+Next.js app sharing `/api/core/*`), and your **Neon Postgres** — already
+connected — stores the data. Result: a permanent **HTTPS** URL you can open on
+any phone, install the Auditor app from, and scan with the camera.
+
+**One-time preparation (on your computer):**
+
+1. **Point the project at Postgres** (skip if your copy already did this for
+   Neon):
+   ```bash
+   bun scripts/use-db.ts postgres     # flips provider in prisma/schema.prisma
+   bun run db:push                    # creates tables in Neon (set DATABASE_URL first)
+   ```
+2. **Make sure login accounts exist** — run `prisma/neon-users.sql` in
+   Neon Console → SQL Editor (see §4.5). Skip if you already did this.
+3. **Push the code to GitHub** (free):
+   ```bash
+   git init && git add -A && git commit -m "EasySourcing platform"
+   git remote add origin https://github.com/<you>/easysourcing.git
+   git push -u origin main
+   ```
+
+**On vercel.com (free account, sign in with GitHub):**
+
+4. **Add New → Project → Import** your `easysourcing` repo. Vercel auto-detects
+   Next.js — keep the default build command.
+5. **Environment Variables** (Project → Settings → Environment Variables) — add
+   for *Production, Preview and Development*:
+
+   | Name | Value |
+   |---|---|
+   | `DATABASE_URL` | your Neon connection string (Neon Console → Connection Details, **pooled** URL, ends `?sslmode=require`) |
+   | `AUTH_SECRET` | any long random string — make one with `openssl rand -base64 32` |
+   | `PRISMA_LOG_SILENT` | `1` |
+
+6. **Deploy.** First build takes ~2 minutes (installs deps, runs
+   `prisma generate`, builds Next.js). You get a URL like
+   `https://easysourcing.vercel.app`.
+7. **Smoke-test the deploy:** open the URL → sign in as
+   `admin@easysourcing.in` → check Hub → Architecture shows all five modules →
+   `GET /api/core/registry` returns JSON. Then log in as each role.
+8. **(Optional) custom domain:** Vercel → Settings → Domains → add
+   `easysourcing.in` and subdomains (`field.`, `ops.`, `clients.`) — DNS guide
+   in §6. Until then the `*.vercel.app` URL works for everything.
+
+> **Honest caveat:** Vercel Hobby is free for non-commercial use. While you are
+> piloting with your team it is fine; when clients are billed on the platform,
+> upgrade to Pro ($20/seat) or move to the always-free Oracle VM path (§5.2).
+
+**Every future update is one command:** `git push` — Vercel rebuilds and
+re-deploys automatically. Preview URLs are created for every branch/PR, so you
+can test changes on the phone before merging.
+
+### 1.3 Test the Auditor app on your phone — 3 ways
+
+The Auditor app is a **PWA**: on Android/iOS it installs to the home screen,
+runs full-screen without browser bars, and the QR/barcode **camera scanner only
+works over HTTPS** (a browser security rule). Pick a route:
+
+**Way 1 — Deploy first (recommended, permanent):** follow §1.2, open the URL on
+your phone, sign in as `auditor@easysourcing.in` / `Field@2026`, then install:
+
+- **Android (Chrome):** ⋮ menu → **“Add to Home screen / Install app”** → the ES
+  Field icon appears with your other apps.
+- **iPhone (Safari):** Share button → **“Add to Home Screen”** → Add.
+
+Camera scanning, offline shell and full-screen mode all work on this URL.
+
+**Way 2 — Same Wi-Fi, right now (no deploy, 2 minutes):** good for clicking
+through flows on a real phone before deploying:
+
+```bash
+bun run dev:lan          # dev server bound to 0.0.0.0 (added to package.json)
+hostname -I              # Linux — note the first IP, e.g. 192.168.1.20
+ipconfig                 # Windows — use the IPv4 address
+```
+
+Phone (same Wi-Fi) → open `http://192.168.1.20:3000` → sign in as the auditor.
+Limits: plain HTTP means **no camera scanner and no PWA install** — UI, jobs and
+checklists all work. Windows/macOS may ask to allow the port through the
+firewall.
+
+**Way 3 — HTTPS tunnel from your laptop (full PWA without deploying, 3
+minutes):** exposes your dev server over HTTPS so camera + install work:
+
+```bash
+bun run dev:lan
+npx localtunnel --port 3000        # → prints an https://*.loca.lt URL
+# or: npx ngrok http 3000          # needs a free ngrok account
+```
+
+Open the printed URL on the phone (localtunnel shows a one-click “Click to
+Continue” relay page first), sign in, then install to the home screen as in Way
+1. The tunnel dies when the laptop sleeps — for real field use, deploy (Way 1).
+
+> **Field-user reminder:** an auditor sees jobs only after Ops assigns a scope
+> — Operations Portal → Audits → open a project → **Assign field team** → pick
+> the member + location. Unassigned auditors correctly see “No assignment yet”.
 
 ---
 

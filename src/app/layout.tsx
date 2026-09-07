@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import { PwaRegister } from "@/components/pwa-register";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -25,8 +26,19 @@ export const metadata: Metadata = {
   description: "Digitize the complete physical asset verification lifecycle: from asset-register intake to the final client-approved audit report. Every Asset. Verified. Reconciled. Accountable.",
   keywords: ["EasySourcing", "asset verification", "physical audit", "reconciliation", "field auditing", "QR asset tags"],
   authors: [{ name: "EasySourcing" }],
+  manifest: "/manifest.webmanifest",
+  applicationName: "ES Field",
   icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: "/icons/apple-touch-icon.png",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "ES Field",
   },
   openGraph: {
     title: "EasySourcing Platform",
@@ -60,6 +72,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${spaceGrotesk.variable} antialiased bg-background text-foreground`}
       >
         {children}
+        <PwaRegister />
       </body>
     </html>
   );
