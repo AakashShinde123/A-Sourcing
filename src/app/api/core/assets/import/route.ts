@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
+import { requireRole } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -48,6 +49,10 @@ const str = (v: unknown): string | null => {
  * A single append-only audit-log entry summarizes the whole batch.
  */
 export async function POST(req: NextRequest) {
+  // RBAC: register intake is an internal-ops action (clients send files to ops).
+  if (!(await requireRole(req, ['ADMIN', 'OPS']))) {
+    return NextResponse.json({ error: 'Only operations accounts may import asset registers' }, { status: 403 })
+  }
   let body: { clientId?: unknown; rows?: unknown }
   try {
     body = (await req.json()) as { clientId?: unknown; rows?: unknown }

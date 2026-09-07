@@ -51,17 +51,35 @@ export const HEADER_ALIASES: Record<string, keyof ParsedRow> = {
 
 const POSITIONAL_KEYS: (keyof ParsedRow)[] = ['clientAssetId', 'description', 'category', 'make', 'model', 'serialNumber', 'barcode', 'locationLabel', 'custodian']
 
-/** Shared grid parser — one code path for CSV text and Excel sheets alike. */
+/** Shared grid parser — one code path for CSV text and Excel sheets alike.
+ *  Robust against real-world exports: banner/title rows above the header are
+ *  detected and skipped (the header is the first row naming ≥3 known columns). */
 function parseGrid(grid: string[][]): { rows: ParsedRow[]; headerMapped: boolean } {
   const lines = grid.filter((r) => r.some((c) => c.trim().length))
   if (!lines.length) return { rows: [], headerMapped: false }
 
-  const headerCells = lines[0].map((c) => c.toLowerCase().replace(/[^a-z ]/g, '').trim())
-  const mapped = headerCells.map((c) => HEADER_ALIASES[c.replace(/ /g, '')] ?? HEADER_ALIASES[c] ?? null)
-  const headerMapped = mapped.filter(Boolean).length >= 3 // a real header names at least 3 known columns
+  const mappedFor = (cells: string[]): (keyof ParsedRow | null)[] =>
+    cells.map((c) => {
+      const clean = c.toLowerCase().replace(/[^a-z ]/g, '').trim()
+      return HEADER_ALIASES[clean.replace(/ /g, '')] ?? HEADER_ALIASES[clean] ?? null
+    })
+
+  // Header hunting: ERP exports often carry a report title / client banner in
+  // the first rows. The real header is the FIRST row naming ≥3 known columns.
+  let mapped: (keyof ParsedRow | null)[] = []
+  let headerIdx = -1
+  for (let i = 0; i < Math.min(lines.length, 6); i++) {
+    const m = mappedFor(lines[i])
+    if (m.filter(Boolean).length >= 3) {
+      mapped = m
+      headerIdx = i
+      break
+    }
+  }
+  const headerMapped = headerIdx >= 0 // a real header names at least 3 known columns
 
   if (headerMapped) {
-    const rows = lines.slice(1).map((cells) => {
+    const rows = lines.slice(headerIdx + 1).map((cells) => {
       const row: ParsedRow = {}
       mapped.forEach((key, i) => { const v = cells[i]?.trim(); if (key && v) row[key] = v })
       return row

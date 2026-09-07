@@ -6,6 +6,8 @@
  * runs stay deterministic and never touch the live demo data.
  */
 import { db } from '@/lib/db'
+import { NextRequest } from 'next/server'
+import { SESSION_COOKIE, signSession, type Role } from '@/lib/session'
 
 let counter = 0
 export const uid = (p: string) => `${p}_${Date.now().toString(36)}_${(++counter).toString(36)}`
@@ -97,10 +99,53 @@ export async function cleanupFixtures(): Promise<void> {
 }
 
 /** Build a NextRequest-shaped Request for direct handler invocation. */
-export function jsonRequest(url: string, body: unknown, method = 'POST'): Request {
+export function jsonRequestSync(url: string, body: unknown, method = 'POST'): Request {
   return new Request(url, {
     method,
     headers: { 'content-type': 'application/json' },
     body: typeof body === 'string' ? body : JSON.stringify(body),
   }) as unknown as import('next/server').NextRequest
+}
+
+// ─── Authenticated request builders ──────────────────────────────
+// Core routes are RBAC-guarded, so whitebox calls must carry a signed
+// session cookie. jsonRequest defaults to the seeded platform admin;
+// pass an explicit user row (or null to stay anonymous) when a test
+// needs a specific role/scope.
+
+export interface AuthUserLike {
+  id: string
+  name: string
+  role: Role
+  clientId?: string | null
+  auditorId?: string | null
+}
+
+export async function platformAdminUser(): Promise<AuthUserLike> {
+  const u = await db.user.findUnique({ where: { email: 'admin@easysourcing.in' } })
+  if (!u) throw new Error('whitebox helpers: seeded admin missing — run bun prisma/seed-users.ts')
+  return { ...u, role: u.role as Role }
+}
+
+export async function signedCookieFor(user: AuthUserLike): Promise<string> {
+  const token = await signSession(
+    { uid: user.id, role: user.role, name: user.name, clientId: user.clientId ?? undefined, auditorId: user.auditorId ?? undefined },
+    3600,
+  )
+  return `${SESSION_COOKIE}=${token}`
+}
+
+/** Authenticated NextRequest — user=null sends no cookie (anonymous 401/403 paths). */
+export async function jsonRequest(url: string, body?: unknown, method = 'POST', user?: AuthUserLike | null): Promise<NextRequest> {
+  const headers: Record<string, string> = { 'content-type': 'application/json' }
+  if (user !== null) {
+    const u = user ?? (await platformAdminUser())
+    headers.cookie = await signedCookieFor(u)
+  }
+  const hasBody = method !== 'GET' && method !== 'DELETE' && body !== undefined
+  return new NextRequest(url, {
+    method,
+    headers,
+    body: hasBody ? (typeof body === 'string' ? body : JSON.stringify(body)) : undefined,
+  })
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { EXCEPTION_LIFECYCLE, LEGAL_EXCEPTION_TRANSITIONS, isLegalTransition } from '@/lib/core-logic'
+import { requireRole } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,6 +14,12 @@ export const dynamic = 'force-dynamic'
  * Illegal moves are rejected with 409; the detection record is never overwritten.
  */
 export async function PATCH(req: NextRequest) {
+  // RBAC: the exception lifecycle is an internal-ops workflow. Client viewers
+  // see exceptions in their portal but drive resolutions through ops.
+  if (!(await requireRole(req, ['ADMIN', 'OPS']))) {
+    return NextResponse.json({ error: 'Only operations accounts may drive the exception lifecycle' }, { status: 403 })
+  }
+
   let body: { id?: unknown; action?: unknown; note?: unknown; assignedTo?: unknown }
   try {
     body = (await req.json()) as typeof body

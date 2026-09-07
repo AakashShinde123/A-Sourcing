@@ -31,7 +31,7 @@ function captureGps() {
 }
 
 export function ScanFlow({ onExit, online }: { onExit: () => void; online: boolean }) {
-  const { world, submitVerifications } = useES()
+  const { world, submitVerifications, user } = useES()
   const [tab, setTab] = useState<'scan' | 'search' | 'discovery'>('scan')
   const [stage, setStage] = useState<Stage>('viewfinder')
   const [asset, setAsset] = useState<Asset | null>(null)
@@ -44,9 +44,15 @@ export function ScanFlow({ onExit, online }: { onExit: () => void; online: boole
   const [disc, setDisc] = useState({ description: '', make: '', model: '', serial: '', condition: 'good' })
   const scanTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const assignment = useMemo(() => world?.assignments.find((a) => a.id === 'asg_1'), [world])
-  const myAssets = useMemo(() => (world ? world.assets.filter((a) => a.assignmentId === 'asg_1') : []), [world])
-  const verifiedIds = useMemo(() => new Set((world?.verifications ?? []).filter((v) => v.assignmentId === 'asg_1').map((v) => v.assetId)), [world])
+  // Session-scoped assignment: the signed-in field user's first assignment;
+  // admin/ops demo sessions fall back to the seeded asg_1.
+  const assignment = useMemo(
+    () => world?.assignments.find((a) => a.auditorId === (user?.auditorId ?? 'adr_1')) ?? world?.assignments.find((a) => a.id === 'asg_1') ?? null,
+    [world, user],
+  )
+  const asgId = assignment?.id ?? 'asg_1'
+  const myAssets = useMemo(() => (world ? world.assets.filter((a) => a.assignmentId === asgId) : []), [world, asgId])
+  const verifiedIds = useMemo(() => new Set((world?.verifications ?? []).filter((v) => v.assignmentId === asgId).map((v) => v.assetId)), [world, asgId])
   const pending = useMemo(() => myAssets.filter((a) => !verifiedIds.has(a.id)), [myAssets, verifiedIds])
 
   // fake camera lock-on
@@ -71,7 +77,7 @@ export function ScanFlow({ onExit, online }: { onExit: () => void; online: boole
       operationId: `op-${uuid()}`,
       auditId: assignment?.auditId ?? world.audits[0].id,
       assignmentId: assignment?.id ?? null,
-      auditorId: 'adr_1',
+      auditorId: user?.auditorId ?? 'adr_1',
       assetId: discovery ? null : asset?.id,
       result: res,
       method: tab === 'scan' ? 'scan' : tab === 'search' ? 'search' : 'discovery',
@@ -104,7 +110,7 @@ export function ScanFlow({ onExit, online }: { onExit: () => void; online: boole
   const searchResults = useMemo(() => {
     const n = searchQ.trim().toLowerCase()
     if (!n) return myAssets.slice(0, 4)
-    return myAssets.filter((a) => [a.code, a.description, a.serialNumber, a.custodian, a.locationLabel].some((f) => f?.toLowerCase().includes(n))).slice(0, 6)
+    return myAssets.filter((a) => [a.code, a.description, a.serialNumber, a.custodian, a.locationLabel, a.barcode].some((f) => f?.toLowerCase().includes(n))).slice(0, 6)
   }, [myAssets, searchQ])
 
   return (

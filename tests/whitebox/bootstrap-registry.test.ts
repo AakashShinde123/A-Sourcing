@@ -6,7 +6,7 @@ import { afterAll, describe, expect, test } from 'bun:test'
 import { GET as bootstrapGET } from '@/app/api/core/bootstrap/route'
 import { GET as registryGET } from '@/app/api/core/registry/route'
 import { db } from '@/lib/db'
-import { makeFixture, cleanupFixtures } from './helpers'
+import { makeFixture, cleanupFixtures, jsonRequest } from './helpers'
 
 afterAll(async () => {
   await cleanupFixtures()
@@ -15,7 +15,7 @@ afterAll(async () => {
 describe('bootstrap aggregates', () => {
   test('returns the full world with consistent, in-bounds aggregates', async () => {
     await makeFixture() // guarantee at least one fixture row flows through aggregates
-    const res = await bootstrapGET()
+    const res = await bootstrapGET(await jsonRequest('http://local/api/core/bootstrap', undefined, 'GET'))
     expect(res.status).toBe(200)
     const w = await res.json() as Record<string, unknown>
 
@@ -51,7 +51,7 @@ describe('bootstrap aggregates', () => {
   })
 
   test('verifiedAssets never exceeds distinct verified set for an audit', async () => {
-    const res = await bootstrapGET()
+    const res = await bootstrapGET(await jsonRequest('http://local/api/core/bootstrap', undefined, 'GET'))
     const w = await res.json() as Record<string, unknown>
     const audits = w.audits as { id: string; verifiedAssets: number; totalInScope: number }[]
     for (const a of audits) {

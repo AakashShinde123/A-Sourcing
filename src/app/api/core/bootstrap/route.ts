@@ -1,14 +1,27 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getSessionUser, type SessionUser } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
 /**
- * GET /api/bootstrap — the full demo world in one payload.
+ * GET /api/core/bootstrap — the platform world in one payload.
  * Aggregates are computed server-side; the SPA consumes this directly.
+ *
+ * DATA SCOPING (server-side, not just UI):
+ *  - ADMIN / OPS  → the full world (internal team).
+ *  - CLIENT       → strictly their own client: their locations, assets,
+ *                   audits, verifications, exceptions, evidence, reports,
+ *                   approvals and only auditors engaged on their audits.
+ *                   Global audit logs and other clients never leave the API.
+ *  - AUDITOR      → only their assignments and the data those assignments
+ *                   need (their audits' assets, their own verifications).
  */
-export async function GET() {
-  const [clients, locations, assetsRaw, auditors, auditsRaw, assignments, verifications, exceptions, evidence, reports, approvals, auditLogs] =
+export async function GET(req: NextRequest) {
+  const user = await getSessionUser(req)
+  if (!user) return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+
+  const [clientsRaw, locationsRaw, assetsRaw, auditorsRaw, auditsRaw, assignmentsRaw, verificationsRaw, exceptionsRaw, evidenceRaw, reportsRaw, approvalsRaw, auditLogsRaw] =
     await Promise.all([
       db.client.findMany({ include: { users: true }, orderBy: { name: 'asc' } }),
       db.location.findMany({ orderBy: { code: 'asc' } }),
@@ -24,6 +37,58 @@ export async function GET() {
       db.auditLog.findMany({ orderBy: { at: 'desc' } }),
     ])
 
+  const isTeam = user.role === 'ADMIN' || user.role === 'OPS'
+  const isClient = user.role === 'CLIENT'
+
+  // ── Scope resolution ────────────────────────────────────────────
+  let clientScope: string[] | null = null        // null = all clients
+  let auditScope: string[] | null = null         // null = all audits
+  let auditorScope: string[] | null = null       // null = all auditors (team)
+  let verificationsScope: ((v: (typeof verificationsRaw)[number]) => boolean) | null = null
+  let auditLogsScope: (typeof auditLogsRaw) | null = auditLogsRaw
+
+  if (isClient) {
+    if (!user.clientId) return NextResponse.json({ error: 'Account is not linked to a client' }, { status: 403 })
+    clientScope = [user.clientId]
+    const myAuditIds = auditsRaw.filter((a) => a.clientId === user.clientId).map((a) => a.id)
+    auditScope = myAuditIds
+    const engagedAuditorIds = new Set(
+      assignmentsRaw.filter((as) => myAuditIds.includes(as.auditId)).map((as) => as.auditorId),
+    )
+    auditorScope = [...engagedAuditorIds]
+    verificationsScope = (v) => myAuditIds.includes(v.auditId)
+    auditLogsScope = [] // the immutable ops trail is internal — never exposed to client viewers
+  } else if (user.role === 'AUDITOR') {
+    const mine = user.auditorId
+      ? assignmentsRaw.filter((as) => as.auditorId === user.auditorId)
+      : []
+    const myAuditIds = [...new Set(mine.map((as) => as.auditId))]
+    auditScope = myAuditIds
+    clientScope = [...new Set(auditsRaw.filter((a) => myAuditIds.includes(a.id)).map((a) => a.clientId))]
+    auditorScope = user.auditorId ? [user.auditorId] : []
+    verificationsScope = (v) => v.auditorId === user.auditorId
+    auditLogsScope = []
+  }
+
+  const inClient = (cid: string) => !clientScope || clientScope.includes(cid)
+  const inAudit = (aid: string | null) => !auditScope || (aid !== null && auditScope.includes(aid))
+  const inAuditor = (aid: string | null) => !auditorScope || (aid !== null && auditorScope.includes(aid))
+
+  const clients = clientsRaw.filter((c) => inClient(c.id))
+  const locations = locationsRaw.filter((l) => inClient(l.clientId))
+  const assets = assetsRaw.filter((a) => inClient(a.clientId))
+  const auditors = auditorsRaw.filter((a) => inAuditor(a.id))
+  const audits = auditsRaw.filter((a) => inAudit(a.id))
+  const assignments = assignmentsRaw.filter((as) => inAudit(as.auditId) && inAuditor(as.auditorId))
+  const verifications = verificationsRaw.filter(
+    (v) => (verificationsScope ? verificationsScope(v) : true) && inAudit(v.auditId),
+  )
+  const exceptions = exceptionsRaw.filter((e) => inAudit(e.auditId))
+  const evidence = evidenceRaw.filter((ev) => inAudit(ev.auditId))
+  const reports = reportsRaw.filter((r) => inAudit(r.auditId))
+  const approvals = approvalsRaw.filter((ap) => inAudit(ap.auditId))
+  const auditLogs = auditLogsScope ?? []
+
   const locationPath = (locId?: string | null): string => {
     if (!locId) return '—'
     const parts: string[] = []
@@ -36,7 +101,7 @@ export async function GET() {
     return parts.join(' · ')
   }
 
-  const assets = assetsRaw.map((a) => ({
+  const mappedAssets = assets.map((a) => ({
     id: a.id,
     clientId: a.clientId,
     code: a.code,
@@ -63,7 +128,7 @@ export async function GET() {
     createdAt: a.createdAt,
   }))
 
-  const audits = auditsRaw.map((au) => {
+  const mappedAudits = audits.map((au) => {
     const vs = verifications.filter((v) => v.auditId === au.id && v.assetId)
     const verifiedAssets = new Set(vs.map((v) => v.assetId)).size
     const byResult = vs.reduce<Record<string, number>>((m, v) => { m[v.result] = (m[v.result] ?? 0) + 1; return m }, {})
@@ -80,8 +145,8 @@ export async function GET() {
   })
 
   const globalStats = {
-    activeAudits: audits.filter((a) => ['in_progress', 'field_complete'].includes(a.status)).length,
-    assetsRegistered: assets.length,
+    activeAudits: mappedAudits.filter((a) => ['in_progress', 'field_complete'].includes(a.status)).length,
+    assetsRegistered: mappedAssets.length,
     assetsVerified: new Set(verifications.filter((v) => v.assetId).map((v) => v.assetId)).size,
     openExceptions: exceptions.filter((e) => !['approved', 'closed'].includes(e.status)).length,
     inFieldAuditors: auditors.filter((a) => a.status === 'in_field').length,
@@ -107,7 +172,7 @@ export async function GET() {
   }
 
   return NextResponse.json({
-    clients, locations, assets, auditors, audits, assignments,
+    clients, locations, assets: mappedAssets, auditors, audits: mappedAudits, assignments,
     verifications: verifications.slice(0, 400).map((v) => ({
       id: v.id, operationId: v.operationId, auditId: v.auditId, assignmentId: v.assignmentId,
       assetId: v.assetId, assetCode: v.asset?.code ?? null, assetDescription: v.asset?.description ?? null,

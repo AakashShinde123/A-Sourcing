@@ -6,7 +6,7 @@
 import { afterAll, describe, expect, test } from 'bun:test'
 import { POST as importPOST } from '@/app/api/core/assets/import/route'
 import { db } from '@/lib/db'
-import { parseRegister, splitCsvLine } from '@/modules/shared/register-parse'
+import { parseRegister, parseSheetRows, splitCsvLine } from '@/modules/shared/register-parse'
 import { makeFixture, cleanupFixtures, jsonRequest, type Fixture } from './helpers'
 
 let fx: Fixture
@@ -30,7 +30,7 @@ describe('asset register import', () => {
       data: { id: `loc_${fx.clientId.slice(-6)}_a`, clientId: fx.clientId, parentId: null, level: 'site', name: 'Production Block A', code: 'PBA-TST' },
     })
 
-    const res = await importPOST(jsonRequest('http://local/api/core/assets/import', { clientId: fx.clientId, rows: REGISTER }))
+    const res = await importPOST(await jsonRequest('http://local/api/core/assets/import', { clientId: fx.clientId, rows: REGISTER }))
     expect(res.status).toBe(200)
     const data = await res.json() as { imported: number; skipped: number; rejected: number; items: { clientAssetId: string; status: string; code?: string }[] }
 
@@ -62,7 +62,7 @@ describe('asset register import', () => {
 
   test('idempotent re-upload — same register reports duplicates, creates nothing new', async () => {
     const before = await db.asset.count({ where: { clientId: fx.clientId } })
-    const res = await importPOST(jsonRequest('http://local/api/core/assets/import', { clientId: fx.clientId, rows: REGISTER }))
+    const res = await importPOST(await jsonRequest('http://local/api/core/assets/import', { clientId: fx.clientId, rows: REGISTER }))
     expect(res.status).toBe(200)
     const data = await res.json() as { imported: number; skipped: number; items: { status: string }[] }
     expect(data.imported).toBe(0)
@@ -73,7 +73,7 @@ describe('asset register import', () => {
   })
 
   test('mixed batch — valid + duplicate + invalid rows each get their own verdict', async () => {
-    const res = await importPOST(jsonRequest('http://local/api/core/assets/import', {
+    const res = await importPOST(await jsonRequest('http://local/api/core/assets/import', {
       clientId: fx.clientId,
       rows: [
         { clientAssetId: 'REG-010', description: 'New lathe', category: 'Production Machinery' },
@@ -89,7 +89,7 @@ describe('asset register import', () => {
     expect(data.rejected).toBe(2)
     expect(data.items.find((i) => i.clientAssetId === '(missing)')?.error).toContain('required')
     // in-batch duplicates (same row twice) also resolve to a single import
-    const again = await importPOST(jsonRequest('http://local/api/core/assets/import', {
+    const again = await importPOST(await jsonRequest('http://local/api/core/assets/import', {
       clientId: fx.clientId,
       rows: [
         { clientAssetId: 'REG-020', description: 'Twin A', category: 'Misc' },
@@ -110,16 +110,16 @@ describe('asset register import', () => {
   })
 
   test('validation — unknown client 404, empty/missing rows 400, non-array 400', async () => {
-    const notFound = await importPOST(jsonRequest('http://local/api/core/assets/import', { clientId: 'cl_does_not_exist', rows: REGISTER }))
+    const notFound = await importPOST(await jsonRequest('http://local/api/core/assets/import', { clientId: 'cl_does_not_exist', rows: REGISTER }))
     expect(notFound.status).toBe(404)
 
-    const noRows = await importPOST(jsonRequest('http://local/api/core/assets/import', { clientId: fx.clientId, rows: [] }))
+    const noRows = await importPOST(await jsonRequest('http://local/api/core/assets/import', { clientId: fx.clientId, rows: [] }))
     expect(noRows.status).toBe(400)
 
-    const notArray = await importPOST(jsonRequest('http://local/api/core/assets/import', { clientId: fx.clientId, rows: 'nope' }))
+    const notArray = await importPOST(await jsonRequest('http://local/api/core/assets/import', { clientId: fx.clientId, rows: 'nope' }))
     expect(notArray.status).toBe(400)
 
-    const noClient = await importPOST(jsonRequest('http://local/api/core/assets/import', { rows: REGISTER }))
+    const noClient = await importPOST(await jsonRequest('http://local/api/core/assets/import', { rows: REGISTER }))
     expect(noClient.status).toBe(400)
   })
 })
@@ -152,5 +152,27 @@ describe('register CSV parsing (pure)', () => {
     expect(splitCsvLine('"Widget, large",B,"say ""hi""",C')).toEqual(['Widget, large', 'B', 'say "hi"', 'C'])
     const { rows } = parseRegister('\nA-2,Desk,Furniture\n\n')
     expect(rows).toHaveLength(1)
+  })
+
+  test('banner/title rows above the header are detected and skipped (real ERP exports)', () => {
+    // styled Excel exports often open with report titles before the header row
+    const grid: (string | null)[][] = [
+      ['Asset Register — Q2 FY26', null, null, null],
+      ['Meridian Manufacturing Pvt Ltd · generated 2026-09-07', null, null, null],
+      ['Asset ID', 'Particulars', 'Group', 'Brand', 'Serial No', 'Floor', 'Holder'],
+      ['A-1', 'Lathe', 'Production', 'Kaltenborg', 'SN-1', 'Block 2', 'Ravi'],
+    ]
+    const parsed = parseSheetRows(grid)
+    expect(parsed.headerMapped).toBe(true)
+    expect(parsed.rows).toHaveLength(1)
+    expect(parsed.rows[0].clientAssetId).toBe('A-1')
+    expect(parsed.rows[0].description).toBe('Lathe')
+    expect(parsed.rows[0].serialNumber).toBe('SN-1')
+    // CSV text path behaves identically
+    const csv = 'FIXED ASSET REGISTER\n\nAsset ID,Particulars,Group\nA-2,Compressor,HVAC'
+    const fromCsv = parseRegister(csv)
+    expect(fromCsv.headerMapped).toBe(true)
+    expect(fromCsv.rows).toHaveLength(1)
+    expect(fromCsv.rows[0].clientAssetId).toBe('A-2')
   })
 })

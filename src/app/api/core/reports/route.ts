@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { nextVersionLabel } from '@/lib/core-logic'
+import { requireRole } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,6 +12,11 @@ export const dynamic = 'force-dynamic'
  * - action 'finalize': freeze the latest report as Final. Requires ≥1 report.
  */
 export async function POST(req: NextRequest) {
+  // RBAC: report generation/finalization is an internal-ops action.
+  if (!(await requireRole(req, ['ADMIN', 'OPS']))) {
+    return NextResponse.json({ error: 'Only operations accounts may generate or finalize reports' }, { status: 403 })
+  }
+
   let body: { auditId?: unknown; action?: unknown }
   try {
     body = (await req.json()) as typeof body

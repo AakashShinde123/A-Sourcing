@@ -15,7 +15,7 @@ afterAll(async () => {
 })
 
 async function call(ops: unknown) {
-  const res = await POST(jsonRequest('http://local/api/core/verify', { operations: ops }))
+  const res = await POST(await jsonRequest('http://local/api/core/verify', { operations: ops }))
   return { status: res.status, body: await res.json() as Record<string, unknown> }
 }
 
@@ -172,7 +172,7 @@ describe('sync engine — hostile / invalid input (production hardening)', () =>
   })
 
   test('malformed JSON body → 400 JSON error, never a 500/HTML page', async () => {
-    const req = jsonRequest('http://local/api/core/verify', '{not json')
+    const req = await jsonRequest('http://local/api/core/verify', '{not json')
     const res = await POST(req)
     expect(res.status).toBe(400)
     expect(res.headers.get('content-type')).toContain('application/json')
@@ -184,7 +184,7 @@ describe('sync engine — hostile / invalid input (production hardening)', () =>
   })
 
   test('missing operations field → treated as empty batch (mobile client sends retry-friendly 200)', async () => {
-    const res = await POST(jsonRequest('http://local/api/core/verify', {}))
+    const res = await POST(await jsonRequest('http://local/api/core/verify', {}))
     expect(res.status).toBe(200)
     expect(((await res.json()) as Record<string, unknown>).applied).toBe(0)
   })

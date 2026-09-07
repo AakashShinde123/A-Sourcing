@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
+import { requireRole } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -42,6 +43,9 @@ async function allocateClientCode(name: string): Promise<string> {
  * immediately.
  */
 export async function POST(req: NextRequest) {
+  if (!(await requireRole(req, ['ADMIN', 'OPS']))) {
+    return NextResponse.json({ error: 'Only operations accounts may add clients' }, { status: 403 })
+  }
   let body: { name?: unknown; industry?: unknown; city?: unknown; contact?: unknown; email?: unknown; phone?: unknown }
   try {
     body = (await req.json()) as typeof body
@@ -99,6 +103,9 @@ export async function POST(req: NextRequest) {
  * Contract: { id, status } → { client }
  */
 export async function PATCH(req: NextRequest) {
+  if (!(await requireRole(req, ['ADMIN', 'OPS']))) {
+    return NextResponse.json({ error: 'Only operations accounts may update clients' }, { status: 403 })
+  }
   let body: { id?: unknown; status?: unknown }
   try {
     body = (await req.json()) as typeof body
@@ -139,6 +146,10 @@ export async function PATCH(req: NextRequest) {
  * with their portal users in one transaction.
  */
 export async function DELETE(req: NextRequest) {
+  // Destructive: client removal is reserved for platform admins.
+  if (!(await requireRole(req, ['ADMIN']))) {
+    return NextResponse.json({ error: 'Only platform admins may remove clients' }, { status: 403 })
+  }
   const id = req.nextUrl.searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'id query parameter is required' }, { status: 400 })
 

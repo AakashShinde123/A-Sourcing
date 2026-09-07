@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
   })
 
   const maxAge = remember ? SESSION_MAX_AGE_REMEMBER : SESSION_MAX_AGE
-  const token = await signSession(toPayload(user), maxAge)
+  const token = await signSession(toPayload({ ...user, role: user.role as import('@/lib/session').Role }), maxAge)
   const res = NextResponse.json({
     user: { id: user.id, name: user.name, email: user.email, role: user.role, clientId: user.clientId, clientName: user.client?.name ?? null, auditorId: user.auditorId },
   })

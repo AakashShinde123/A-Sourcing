@@ -55,9 +55,13 @@ export function MobileApp() {
 
   // Field identity: the signed-in AUDITOR's linked record; ADMIN/OPS preview as the demo auditor.
   const me = world?.auditors.find((a) => a.id === (user?.role === 'AUDITOR' && user.auditorId ? user.auditorId : 'adr_1')) ?? world?.auditors[0]
-  const assignment = useMemo(() => world?.assignments.find((a) => a.id === 'asg_1'), [world])
-  const myAssets = useMemo(() => (world ? world.assets.filter((a) => a.assignmentId === 'asg_1') : []), [world])
-  const myVerifs = useMemo(() => (world?.verifications ?? []).filter((v) => v.assignmentId === 'asg_1'), [world])
+  const assignment = useMemo(
+    () => world?.assignments.find((a) => a.auditorId === (user?.auditorId ?? 'adr_1')) ?? world?.assignments.find((a) => a.id === 'asg_1') ?? null,
+    [world, user],
+  )
+  const asgId = assignment?.id ?? 'asg_1'
+  const myAssets = useMemo(() => (world ? world.assets.filter((a) => a.assignmentId === asgId) : []), [world, asgId])
+  const myVerifs = useMemo(() => (world?.verifications ?? []).filter((v) => v.assignmentId === asgId), [world, asgId])
   const verifiedCount = new Set(myVerifs.map((v) => v.assetId)).size
   const exceptionCount = myVerifs.filter((v) => v.result !== 'matched' && v.result !== 'deferred').length
   const pendingCount = Math.max(0, myAssets.length - verifiedCount)
@@ -222,7 +226,7 @@ export function MobileApp() {
                     <>
                       <div className="font-display text-[16px] font-bold text-zinc-900">Assignments</div>
                       <div className="mt-3 space-y-2.5">
-                        {world?.assignments.filter((a) => a.auditorId === 'adr_1').map((a) => {
+                        {world?.assignments.filter((a) => a.auditorId === (user?.auditorId ?? 'adr_1')).map((a) => {
                           const assets = world.assets.filter((x) => x.assignmentId === a.id)
                           const vs = world.verifications.filter((v) => v.assignmentId === a.id)
                           const done = new Set(vs.map((v) => v.assetId)).size

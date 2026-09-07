@@ -14,7 +14,7 @@ afterAll(async () => {
 })
 
 async function patch(body: Record<string, unknown>) {
-  const res = await PATCH(jsonRequest('http://local/api/core/exceptions', body, 'PATCH'))
+  const res = await PATCH(await jsonRequest('http://local/api/core/exceptions', body, 'PATCH'))
   return { status: res.status, body: await res.json() as Record<string, unknown> }
 }
 

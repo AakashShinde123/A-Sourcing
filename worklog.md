@@ -204,3 +204,33 @@ Stage Summary:
 - Field Team and Clients are now fully manageable from the Ops Portal: add members/clients, deactivate/reactivate, pause/reactivate, remove with confirm — guarded so audit history and client data can never be destroyed by a delete
 - Every Ops + Client view is overflow-free at 390px and clean at 1280px
 - Screenshots: .zscripts/{team,clients}-desktop-1280.png, team-add-dialog-390.png, client-add-dialog-390.png, remove-confirm-390.png, client-added-390.png, arjun-locked-390.png, meridian-locked-390.png
+
+---
+Task ID: 9
+Agent: Super Z (main)
+Task: Login system with strong security (team-only platform) + sample testing barcodes & Excels for import (user: "build login system with strong security because it's all only see my team not any publicly.. and give me sample testing barcodes and excels for import")
+
+Work Log:
+- Found the auth layer mostly built by the interrupted previous session (lib/auth, lib/session, lib/rate-limit, /api/auth/login|logout|me|users, LoginScreen, AccessView, proxy.ts gatekeeper, seed-users.ts, whitebox auth-users + blackbox auth tests) — verified login worked live, then closed the remaining security gaps
+- SECURITY GAP FOUND: every /api/core/* route trusted any authenticated session (bootstrap returned the whole world to CLIENT users; CLIENT/AUDITOR could call ops write endpoints; verify trusted payload auditorId)
+- RBAC IMPLEMENTED (route-level, server-side):
+  · lib/auth: requireRole() + TEAM_ROLES
+  · bootstrap: role-scoped payloads — ADMIN/OPS full world; CLIENT strictly own clientId (locations/assets/audits/verifications/exceptions/evidence/reports/approvals filtered, engaged auditors only, auditLogs = []); AUDITOR own assignments/audits/clients/verifications only
+  · verify: ADMIN/OPS/AUDITOR only; AUDITOR sessions get op.auditorId FORCED from session (payload spoofing impossible)
+  · exceptions PATCH, reports POST, assets/import POST, auditors POST/PATCH/DELETE: ADMIN/OPS only
+  · approvals: CLIENT sessions restricted to own client's audits + recorded actor forced to session identity (byName/byRole payload ignored for CLIENT)
+  · clients DELETE: ADMIN only (destructive); POST/PATCH team-only
+- Identity fixes: MobileApp/ScanFlow hard-coded 'adr_1'/'asg_1' replaced with session auditorId resolution (admin/ops demo falls back to seeded asg_1); ScanFlow search now also matches asset.barcode (tag scanning)
+- BUG FIXED (found by sample verification): parseGrid header detection broke on styled Excel exports with banner/title rows above the header — parser now hunts the first row naming ≥3 known columns (up to 6 rows deep); real ERP exports with report titles now parse correctly; regression test added
+- BUG FIXED (found by E2E): client login → Application error — HubApp rendered portal surfaces before post-login bootstrap landed (loading flag was cleared by the signed-out probe); gate now requires world
+- DEPLOYMENT.md: AUTH_SECRET env var documented (§3), new §4.5 "Login accounts & sessions" (starter accounts table + defense stack), §10 checklist updated (auth + RBAC now implemented); download copy synced
+- Core API manifest 2.2.0 → 3.0.0 (auth + RBAC contract reflected in apiContract purposes)
+- Tests: helpers gained signed-cookie jsonRequest (real NextRequest, default admin session; user=null for anonymous paths) — all call sites await; NEW tests/whitebox/rbac.test.ts (10 tests: anonymous 401/403 matrix, CLIENT bootstrap scoping, CLIENT ops-block, cross-client approval 403, session-identity forcing for approvals + verifications, ADMIN-only client removal); blackbox auth.test.ts gained live role-matrix suite (5 tests: CLIENT scoped bootstrap + ops 403s + cross-client approval 403, AUDITOR scoped bootstrap, OPS team-pass + admin-only client delete); assets-import gained banner-row parser test
+- SAMPLE KIT (download/easysourcing-samples/): 3 styled .xlsx + CSV twin (fresh 10 rows / dedup-check 4 dup + 2 new / errors 3 broken + 2 valid) using real-ERP alias headers (Particulars, Group, Brand, Tag, Floor, Holder) and Meridian's real location names (Annex Shed intentionally unlinked); 16 barcodes as QR + pure-Python Code128 PNGs (pip blocked → hand-rolled Code128B encoder) + printable A4 labels PDF (QR + Code128 + value per label, 100% scale note); README.txt with 7-step test script; tags MRD-TAG-1001..1014 match the Excel Tag column, +2 labels for existing ES-MRD-00043/00089
+- Sample verification script (scripts/verify_samples.ts) ran the actual xlsx → dialog parse path → import handler against an isolated DB copy: fresh 10 imported/0 rejected + ES-MRD-NNNNN codes, dedup 2+4, errors 2+3 with reasons, tag↔barcode cross-check — ALL PASS, live data untouched
+- E2E (agent-browser): login screen renders (demo chips + generic error), wrong password → "Invalid email or password", admin login → hub → Ops → Access & Accounts (rows + self-deactivate locked), import dialog loaded sample-asset-register-fresh.xlsx → "10 rows found · valid · header row mapped automatically" → cancelled; logout → client login → scoped portal (Meridian only, Kavita · Client Admin, no ops views) with NO crash after the HubApp fix; auditor login at 390px → "Good morning, Arjun", session-scoped assignment AUD-2025-014, scan flow present; 390px no horizontal scroll; 0 console errors / 0 page errors
+
+Stage Summary:
+- The platform is now genuinely team-only: no public surface, session-gated API, and role-scoped data — CLIENT sees only their org, AUDITOR only their own work with unforgeable attribution, ops workflows are team-only, client removal admin-only. 159 tests green (118 whitebox + 41 blackbox), lint clean, registry healthy at core-api 3.0.0
+- Sample test kit delivered: 4 register files + 32 barcode PNGs + printable label sheet + README — verified end-to-end through the real parser and import endpoint
+- Screenshots: .zscripts/auth-{access-admin,import-sample,client-scoped,client-390,auditor-390,auditor-1440}.png

@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import {
   validateSyncOp, severityFor, EXCEPTION_TYPES, nextExceptionCode,
 } from '@/lib/core-logic'
+import { requireRole } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,6 +23,15 @@ function isUniqueViolation(e: unknown): boolean {
  * - 'unregistered' ops create a discovery asset + exception (floor-to-sheet).
  */
 export async function POST(req: NextRequest) {
+  // RBAC: field verifications come from the field team (and ops supervisors).
+  // AUDITOR sessions have their auditorId FORCED from the session — a signed-in
+  // field user can never attribute work to a colleague by editing the payload.
+  const session = await requireRole(req, ['ADMIN', 'OPS', 'AUDITOR'])
+  if (!session) return NextResponse.json({ error: 'Only field team and operations accounts may submit verifications' }, { status: 403 })
+  if (session.role === 'AUDITOR' && !session.auditorId) {
+    return NextResponse.json({ error: 'Auditor account is not linked to a field team member' }, { status: 403 })
+  }
+
   let body: { operations?: unknown }
   try {
     body = (await req.json()) as { operations?: unknown }
@@ -63,6 +73,7 @@ export async function POST(req: NextRequest) {
       continue
     }
     const op = verdict.value
+    if (session.role === 'AUDITOR') op.auditorId = session.auditorId! // identity comes from the session, never the payload
 
     // Reference integrity: audit, auditor and asset must exist before we write.
     const audit = await db.auditProject.findUnique({ where: { id: op.auditId } })

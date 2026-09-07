@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
+import { requireRole } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,6 +40,9 @@ async function nextEmployeeCode(): Promise<string> {
  * Duplicates (email) are rejected 409; employee code is auto-allocated.
  */
 export async function POST(req: NextRequest) {
+  if (!(await requireRole(req, ['ADMIN', 'OPS']))) {
+    return NextResponse.json({ error: 'Only operations accounts may manage the field team' }, { status: 403 })
+  }
   let body: { name?: unknown; email?: unknown; phone?: unknown; city?: unknown }
   try {
     body = (await req.json()) as typeof body
@@ -96,6 +100,9 @@ export async function POST(req: NextRequest) {
  * Name and email are immutable (they anchor historical verifications).
  */
 export async function PATCH(req: NextRequest) {
+  if (!(await requireRole(req, ['ADMIN', 'OPS']))) {
+    return NextResponse.json({ error: 'Only operations accounts may manage the field team' }, { status: 403 })
+  }
   let body: { id?: unknown; status?: unknown; phone?: unknown; city?: unknown }
   try {
     body = (await req.json()) as typeof body
@@ -143,6 +150,9 @@ export async function PATCH(req: NextRequest) {
  * and the client should deactivate (PATCH status=offline) instead.
  */
 export async function DELETE(req: NextRequest) {
+  if (!(await requireRole(req, ['ADMIN', 'OPS']))) {
+    return NextResponse.json({ error: 'Only operations accounts may manage the field team' }, { status: 403 })
+  }
   const id = req.nextUrl.searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'id query parameter is required' }, { status: 400 })
 

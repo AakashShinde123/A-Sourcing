@@ -15,7 +15,7 @@ afterAll(async () => {
 })
 
 async function report(body: Record<string, unknown>) {
-  const res = await reportsPOST(jsonRequest('http://local/api/core/reports', body))
+  const res = await reportsPOST(await jsonRequest('http://local/api/core/reports', body))
   return { status: res.status, body: await res.json() as Record<string, unknown> }
 }
 
@@ -68,13 +68,13 @@ describe('report versioning engine', () => {
 
 describe('approval decision engine', () => {
   test('404 for unknown audit', async () => {
-    const res = await approvalsPOST(jsonRequest('http://local/api/core/approvals', { auditId: 'nope', decision: 'approved', byName: 'X', byRole: 'Y' }))
+    const res = await approvalsPOST(await jsonRequest('http://local/api/core/approvals', { auditId: 'nope', decision: 'approved', byName: 'X', byRole: 'Y' }))
     expect(res.status).toBe(404)
   })
 
   test('approve on client_review audit finalizes it', async () => {
     fx = await makeFixture({ auditStatus: 'client_review' })
-    const res = await approvalsPOST(jsonRequest('http://local/api/core/approvals', {
+    const res = await approvalsPOST(await jsonRequest('http://local/api/core/approvals', {
       auditId: fx.auditId, decision: 'approved', byName: 'QA Approver', byRole: 'CFO', comment: 'Numbers look right',
     }))
     expect(res.status).toBe(200)
@@ -84,7 +84,7 @@ describe('approval decision engine', () => {
 
   test('changes_requested sends audit back to internal review', async () => {
     const fx2 = await makeFixture({ auditStatus: 'client_review' })
-    await approvalsPOST(jsonRequest('http://local/api/core/approvals', {
+    await approvalsPOST(await jsonRequest('http://local/api/core/approvals', {
       auditId: fx2.auditId, decision: 'changes_requested', byName: 'QA', byRole: 'Manager',
     }))
     expect((await db.auditProject.findUnique({ where: { id: fx2.auditId } }))!.status).toBe('review')
@@ -92,13 +92,13 @@ describe('approval decision engine', () => {
 
   test('rejected / clarification record the decision without moving audit status', async () => {
     const fx3 = await makeFixture({ auditStatus: 'client_review' })
-    await approvalsPOST(jsonRequest('http://local/api/core/approvals', { auditId: fx3.auditId, decision: 'clarification', byName: 'QA', byRole: 'Manager' }))
+    await approvalsPOST(await jsonRequest('http://local/api/core/approvals', { auditId: fx3.auditId, decision: 'clarification', byName: 'QA', byRole: 'Manager' }))
     expect((await db.auditProject.findUnique({ where: { id: fx3.auditId } }))!.status).toBe('client_review')
   })
 
   test('REGRESSION: invalid decision values are rejected with 400 (was silently recorded)', async () => {
     const fx4 = await makeFixture({ auditStatus: 'client_review' })
-    const res = await approvalsPOST(jsonRequest('http://local/api/core/approvals', {
+    const res = await approvalsPOST(await jsonRequest('http://local/api/core/approvals', {
       auditId: fx4.auditId, decision: 'sure-why-not', byName: 'QA', byRole: 'Manager',
     }))
     expect(res.status).toBe(400)
@@ -108,7 +108,7 @@ describe('approval decision engine', () => {
 
   test('missing byName/byRole → 400 (audit trail needs an accountable actor)', async () => {
     const fx5 = await makeFixture({ auditStatus: 'client_review' })
-    const res = await approvalsPOST(jsonRequest('http://local/api/core/approvals', { auditId: fx5.auditId, decision: 'approved' }))
+    const res = await approvalsPOST(await jsonRequest('http://local/api/core/approvals', { auditId: fx5.auditId, decision: 'approved' }))
     expect(res.status).toBe(400)
   })
 })

@@ -95,6 +95,7 @@ moving house means changing only the `deploy.target` in each manifest.
 | `PORT` | no | `3000` | standalone server port |
 | `HOSTNAME` | no | `0.0.0.0` | bind address (set in the Dockerfile) |
 | `PRISMA_LOG_SILENT` | no | `1` | set in prod to silence per-query logging |
+| `AUTH_SECRET` | **yes (prod)** | `openssl rand -base64 32` | Signing key for session JWTs. If omitted, a fixed dev fallback is used — NEVER ship that to production. Rotating it instantly invalidates every active session. |
 | `DATABASE_URL` at build time | no | `file:/tmp/build.db` | Prisma generate needs *a* value; the Dockerfile sets one |
 
 Create `.env.production` (never commit it):
@@ -102,6 +103,7 @@ Create `.env.production` (never commit it):
 ```bash
 NODE_ENV=production
 DATABASE_URL=file:/data/custom.db
+AUTH_SECRET=$(openssl rand -base64 32)
 PRISMA_LOG_SILENT=1
 ```
 
@@ -155,6 +157,50 @@ production switch the datasource:
 - **Postgres:** `pg_dump` nightly, PITR via your provider.
 
 The whole audit trail lives in this database — treat it as financial records.
+
+### 4.5 Login accounts & sessions (the platform is team-only)
+
+The whole platform sits behind sign-in. There is no public view — unauthenticated
+visitors see the login screen only, and every `/api/core/*` call without a valid
+session answers `401`.
+
+**Create the starter team accounts (once, after schema push):**
+
+```bash
+bun prisma/seed-users.ts
+```
+
+| Account | Email | Starter password | Role | Sees |
+|---|---|---|---|---|
+| Platform Admin | `admin@easysourcing.in` | `Admin@2026` | ADMIN | everything + Access & Accounts |
+| Operations | `ops@easysourcing.in` | `Ops@2026` | OPS | ops portal (no Access view) |
+| Client — Meridian | `client@easysourcing.in` | `Client@2026` | CLIENT | Meridian's data ONLY |
+| Field — Arjun | `auditor@easysourcing.in` | `Field@2026` | AUDITOR | own assignments in the mobile PWA |
+
+**Change these starter passwords before real use** — Ops Portal → *Access & Accounts*
+→ reset-password (admin only). More accounts are created the same way; CLIENT
+accounts must be linked to a client, AUDITOR accounts to a field team member —
+that link is what scopes their data access server-side.
+
+**How sessions are protected (all server-side, no config needed):**
+
+- Passwords hashed with **bcrypt cost 12**; policy: ≥ 8 chars, letter + number.
+- Session = **HS256-signed JWT in an httpOnly SameSite=Lax cookie** — 12 h, or
+  30 days with "keep me signed in". Logout / deactivation kills access
+  immediately (`/api/auth/me` re-checks the DB every request).
+- **Brute force:** 5 failed attempts per email+IP → 15 min lockout; 100
+  attempts per IP / 15 min (spray guard). All outcomes land in the audit log.
+- **CSRF:** cross-origin mutations rejected by the proxy (Origin/host check),
+  cookie is SameSite — two independent layers.
+- **RBAC (server-side, not just hidden UI):** CLIENT sessions receive ONLY
+  their client's data from `/api/core/bootstrap` and can never call ops
+  endpoints; AUDITOR sessions see only their assignments and their verifications
+  are attributed to their session identity (payload `auditorId` is ignored);
+  exception lifecycle / reports / register import / team & client management
+  require ADMIN/OPS; removing a client requires ADMIN.
+- Security headers on every response: `X-Frame-Options: DENY`,
+  `X-Content-Type-Options: nosniff`, strict `Referrer-Policy`, locked-down
+  `Permissions-Policy`.
 
 ---
 
@@ -305,17 +351,20 @@ the booted container → build image → tag with module manifest semver → dep
 - ✅ Error responses are always JSON — no stack traces or HTML error pages leak.
 - ✅ Fuzz-tested: SQL-ish strings, oversized payloads (20 KB), unicode, null
   bodies, wrong types — all degrade to clean 4xx.
+- ✅ **Authentication built in** — bcrypt(12) passwords, signed httpOnly session
+  cookies, brute-force lockouts, account deactivation, full login audit trail
+  (§4.5). The app renders a login screen until signed in.
+- ✅ **Role-gated API (RBAC)** — CLIENT scoped to own client data, AUDITOR to
+  own work with session-forced identity, ops writes team-only, client removal
+  admin-only; enforced in every route handler, not just the UI.
 
 **Recommended before internet-facing production:**
 
-- [ ] Put authentication in front of the app (NextAuth.js v4 is already a
-      dependency) — the demo currently runs open by design.
-- [ ] Role-gate the API: Ops users → `PATCH /exceptions`, clients →
-      `POST /approvals` scoped to their `clientId`, auditors → `POST /verify`.
-- [ ] Rate-limit `POST /api/core/verify` at the edge (it is the field-sync
-      hot path).
+- [ ] Set a strong `AUTH_SECRET` env var (§3) — the dev fallback is for local only.
+- [ ] Change the four starter passwords from Ops Portal → Access & Accounts.
 - [ ] Enforce HTTPS/HSTS at the proxy; add CSP headers for the portals.
-- [ ] Rotate demo credentials out of `prisma/seed.ts`.
+- [ ] Rate-limit `POST /api/core/verify` at the edge when exposed publicly
+      (the in-app RBAC already requires a field-team session).
 
 ---
 

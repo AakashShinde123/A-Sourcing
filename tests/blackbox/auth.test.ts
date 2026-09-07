@@ -223,6 +223,71 @@ describe('account lifecycle over the wire (admin only)', () => {
   })
 })
 
+describe('role matrix on the Core API (live RBAC)', () => {
+  test('CLIENT session: bootstrap is scoped to their own client, audit trail withheld', async () => {
+    const login = await post('/api/auth/login', { email: 'client@easysourcing.in', password: 'Client@2026' })
+    const cookie = cookieOf(login)
+    const res = await fetch(`${BASE}/api/core/bootstrap`, { headers: { cookie } })
+    expect(res.status).toBe(200)
+    const w = await res.json() as {
+      clients: { id: string }[]; audits: { clientId: string }[]; assets: { clientId: string }[]; auditLogs: unknown[]
+    }
+    expect(w.clients).toHaveLength(1)
+    expect(w.clients[0].id).toBe('cl_mrd') // Kavita sees Meridian only
+    for (const a of w.audits) expect(a.clientId).toBe('cl_mrd')
+    for (const a of w.assets) expect(a.clientId).toBe('cl_mrd')
+    expect(w.auditLogs).toEqual([]) // the ops audit trail is internal
+  })
+
+  test('CLIENT session: ops write endpoints all refuse (403)', async () => {
+    const login = await post('/api/auth/login', { email: 'client@easysourcing.in', password: 'Client@2026' })
+    const cookie = cookieOf(login)
+    const post2 = (path: string, body: unknown) => post(path, body, cookie)
+    expect((await post2('/api/core/verify', { operations: [] })).status).toBe(403)
+    expect((await patch('/api/core/exceptions', { id: 'x', action: 'assign' }, cookie)).status).toBe(403)
+    expect((await post2('/api/core/reports', { auditId: 'x', action: 'generate' })).status).toBe(403)
+    expect((await post2('/api/core/assets/import', { clientId: 'cl_mrd', rows: [] })).status).toBe(403)
+    expect((await post2('/api/core/auditors', { name: 'Nope', email: `nope.${tag}@es.test` })).status).toBe(403)
+    expect((await post2('/api/core/clients', { name: 'Nope Co', industry: 'X', city: 'X', contact: 'X', email: `nopec.${tag}@es.test` })).status).toBe(403)
+  })
+
+  test('CLIENT session: cannot approve another client’s audit over the wire', async () => {
+    const other = await db.auditProject.findFirst({ where: { clientId: { not: 'cl_mrd' } } })
+    if (!other) return
+    const login = await post('/api/auth/login', { email: 'client@easysourcing.in', password: 'Client@2026' })
+    const res = await post('/api/core/approvals', { auditId: other.id, decision: 'approved', byName: 'Spoof', byRole: 'X' }, cookieOf(login))
+    expect(res.status).toBe(403)
+    expect((await db.auditProject.findUnique({ where: { id: other.id } }))?.status).toBe(other.status) // untouched
+  })
+
+  test('AUDITOR session: scoped bootstrap (own work only) and no ops writes', async () => {
+    const login = await post('/api/auth/login', { email: 'auditor@easysourcing.in', password: 'Field@2026' })
+    const cookie = cookieOf(login)
+    const res = await fetch(`${BASE}/api/core/bootstrap`, { headers: { cookie } })
+    expect(res.status).toBe(200)
+    const w = await res.json() as {
+      auditors: { id: string }[]; verifications: { auditorId: string }[]; auditLogs: unknown[]; audits: unknown[]
+    }
+    expect(w.auditLogs).toEqual([])
+    for (const v of w.verifications) expect(v.auditorId).toBe('adr_1') // Arjun's own record only
+    expect(w.auditors.every((a) => a.id === 'adr_1')).toBe(true)
+
+    // auditors CAN reach the sync endpoint (their tool) — empty batch is a harmless no-op
+    expect((await post('/api/core/verify', { operations: [] }, cookie)).status).toBe(200)
+  })
+
+  test('OPS session: ops writes allowed, client removal still admin-only', async () => {
+    const login = await post('/api/auth/login', { email: 'ops@easysourcing.in', password: 'Ops@2026' })
+    const cookie = cookieOf(login)
+    const importRes = await post('/api/core/assets/import', { clientId: 'cl_mrd', rows: [] }, cookie)
+    // team role passes the RBAC guard — the 400 comes from route validation (≥1 row), not 403
+    expect(importRes.status).toBe(400)
+    expect(((await importRes.json()) as { error: string }).error).toContain('at least one asset')
+    const del = await fetch(`${BASE}/api/core/clients?id=nope`, { method: 'DELETE', headers: { cookie } })
+    expect(del.status).toBe(403) // destructive removal is ADMIN-only
+  })
+})
+
 describe('logout', () => {
   test('logout clears the session cookie (stateless JWT contract)', async () => {
     const login = await post('/api/auth/login', { email: 'ops@easysourcing.in', password: 'Ops@2026' })

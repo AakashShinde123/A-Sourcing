@@ -31,7 +31,7 @@ function Splash({ label }: { label: string }) {
 }
 
 function SurfaceRouter() {
-  const { surface, loading, user, authLoading } = useES()
+  const { surface, loading, world, user, authLoading } = useES()
 
   if (authLoading) return <Splash label="Checking your session…" />
   if (!user) return <LoginScreen />
@@ -40,7 +40,9 @@ function SurfaceRouter() {
   // If a stale surface is somehow active, render the role's home instead.
   const active = surfacesForRole(user.role).includes(surface) ? surface : homeSurfaceForRole(user.role)
 
-  if (loading) return <Splash label="Loading EasySourcing platform…" />
+  // world must exist before any portal renders — after sign-in the surface
+  // switches instantly while the first bootstrap is still in flight.
+  if (loading || !world) return <Splash label="Loading EasySourcing platform…" />
 
   return (
     <>

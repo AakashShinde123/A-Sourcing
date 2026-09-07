@@ -75,6 +75,20 @@ export function isRole(v: unknown): v is Role {
   return typeof v === 'string' && ['ADMIN', 'OPS', 'CLIENT', 'AUDITOR'].includes(v)
 }
 
+/** Roles that run the Operations Portal side of the platform (internal team). */
+export const TEAM_ROLES: Role[] = ['ADMIN', 'OPS']
+
+/**
+ * Route-level RBAC gate — returns the session user when their role is allowed,
+ * otherwise null. Handlers respond 403 when null (401 is reserved for the
+ * proxy's "no session at all" answer, so clients can distinguish the two).
+ */
+export async function requireRole(req: NextRequest, roles: Role[]): Promise<SessionUser | null> {
+  const user = await getSessionUser(req)
+  if (!user || !roles.includes(user.role)) return null
+  return user
+}
+
 /** Normalized session payload for signing (used by login + tests). */
 export function toPayload(u: { id: string; name: string; role: Role; clientId?: string | null; auditorId?: string | null }): SessionPayload {
   return { uid: u.id, role: u.role, name: u.name, clientId: u.clientId ?? undefined, auditorId: u.auditorId ?? undefined }
