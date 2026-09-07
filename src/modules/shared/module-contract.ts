@@ -63,7 +63,7 @@ export const SHARED_KERNEL = {
 export const CORE_API_MANIFEST: ModuleManifest = {
   id: 'core-api',
   name: 'Core API Service',
-  version: '3.0.0',
+  version: '3.1.0',
   kind: 'service',
   tagline: 'The single source of truth every module talks to',
   description:
@@ -72,6 +72,8 @@ export const CORE_API_MANIFEST: ModuleManifest = {
   accent: 'violet',
   apiContract: [
     { method: 'GET', path: '/api/core/bootstrap', purpose: 'Full world payload + stats — role-scoped (CLIENT: own data, AUDITOR: own work)' },
+    { method: 'POST', path: '/api/core/audits', purpose: 'Create audit project (draft) — team only' },
+    { method: 'PATCH', path: '/api/core/audits', purpose: 'Publish/withdraw field scopes, advance lifecycle — team only' },
     { method: 'POST', path: '/api/core/verify', purpose: 'Idempotent batch sync — AUDITOR identity forced from session' },
     { method: 'PATCH', path: '/api/core/exceptions', purpose: 'Exception lifecycle — team (ADMIN/OPS) only' },
     { method: 'POST', path: '/api/core/approvals', purpose: 'Client sign-off — CLIENT scoped to own audits, identity from session' },

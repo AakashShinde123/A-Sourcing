@@ -9,7 +9,7 @@ import {
   Search, PackageSearch, Plus, Loader2, RefreshCw, Clock, FileText,
 } from 'lucide-react'
 import { useES } from '@/modules/shared/store'
-import type { Asset, QueueOp } from '@/modules/shared/types'
+import type { Asset, Assignment, QueueOp } from '@/modules/shared/types'
 
 export type ScanIntent = { type: 'scan' } | { type: 'search' } | { type: 'discovery' }
 
@@ -30,7 +30,7 @@ function captureGps() {
   return { lat, lng, acc: +(2.5 + Math.random() * 5).toFixed(1) }
 }
 
-export function ScanFlow({ onExit, online }: { onExit: () => void; online: boolean }) {
+export function ScanFlow({ onExit, online, scope }: { onExit: () => void; online: boolean; scope: Assignment | null }) {
   const { world, submitVerifications, user } = useES()
   const [tab, setTab] = useState<'scan' | 'search' | 'discovery'>('scan')
   const [stage, setStage] = useState<Stage>('viewfinder')
@@ -44,20 +44,17 @@ export function ScanFlow({ onExit, online }: { onExit: () => void; online: boole
   const [disc, setDisc] = useState({ description: '', make: '', model: '', serial: '', condition: 'good' })
   const scanTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Session-scoped assignment: the signed-in field user's first assignment;
-  // admin/ops demo sessions fall back to the seeded asg_1.
-  const assignment = useMemo(
-    () => world?.assignments.find((a) => a.auditorId === (user?.auditorId ?? 'adr_1')) ?? world?.assignments.find((a) => a.id === 'asg_1') ?? null,
-    [world, user],
-  )
-  const asgId = assignment?.id ?? 'asg_1'
-  const myAssets = useMemo(() => (world ? world.assets.filter((a) => a.assignmentId === asgId) : []), [world, asgId])
+  // The active field scope is owned by MobileApp (scope switcher on the hero);
+  // ScanFlow purely verifies within it.
+  const assignment = scope
+  const asgId = assignment?.id ?? null
+  const myAssets = useMemo(() => (world && asgId ? world.assets.filter((a) => a.assignmentId === asgId) : []), [world, asgId])
   const verifiedIds = useMemo(() => new Set((world?.verifications ?? []).filter((v) => v.assignmentId === asgId).map((v) => v.assetId)), [world, asgId])
   const pending = useMemo(() => myAssets.filter((a) => !verifiedIds.has(a.id)), [myAssets, verifiedIds])
 
   // fake camera lock-on
   useEffect(() => {
-    if (tab === 'scan' && stage === 'viewfinder') {
+    if (tab === 'scan' && stage === 'viewfinder' && assignment) {
       scanTimer.current = setTimeout(() => {
         const target = pending[0] ?? null
         if (!target) { toast.info('All assets in this scope are verified', { description: 'Try Floor-to-Sheet discovery instead.' }); return }
@@ -65,12 +62,12 @@ export function ScanFlow({ onExit, online }: { onExit: () => void; online: boole
       }, 1900)
       return () => { if (scanTimer.current) clearTimeout(scanTimer.current) }
     }
-  }, [tab, stage, pending])
+  }, [tab, stage, pending, assignment])
 
   function reset() { setStage('viewfinder'); setAsset(null); setResult(null); setPhotos([]); setRemarks('') }
 
   async function buildAndSave(res: string, discovery?: Partial<QueueOp['discovery']>) {
-    if (!world) return
+    if (!world || !assignment) return
     setStage('saving')
     setSavedResult(res)
     const op: QueueOp = {

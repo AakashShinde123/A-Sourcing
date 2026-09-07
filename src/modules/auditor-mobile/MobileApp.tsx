@@ -8,7 +8,7 @@ import { ModuleSwitcher } from '@/modules/shared/ModuleSwitcher'
 import { ScanFlow } from './ScanFlow'
 import { Avatar, Bar as ProgressBar, Pill } from '@/modules/shared/ui-bits'
 import { resultMeta, fmtDateShort, exceptionTypeMeta } from '@/modules/shared/format'
-import type { QueueOp } from '@/modules/shared/types'
+import type { Assignment, QueueOp } from '@/modules/shared/types'
 import {
   Home, ClipboardList, ScanLine, ShieldAlert, User, Wifi, WifiOff, RefreshCw, Loader2,
   CheckCircle2, Clock, BatteryFull, SignalHigh, ScanFace, LogOut, ChevronRight, MapPin,
@@ -17,8 +17,9 @@ import {
 const QUEUE_KEY = 'es-offline-queue'
 
 export function MobileApp() {
-  const { world, setSurface, submitVerifications, user } = useES()
+  const { world, setSurface, submitVerifications, user, logout } = useES()
   const [tab, setTab] = useState<'home' | 'assignments' | 'scan' | 'exceptions' | 'profile'>('home')
+  const [activeAsgId, setActiveAsgId] = useState<string | null>(null)
   const [online, setOnline] = useState(true)
   const [queue, setQueue] = useState<QueueOp[]>([])
   const [syncing, setSyncing] = useState(false)
@@ -54,10 +55,22 @@ export function MobileApp() {
   }
 
   // Field identity: the signed-in AUDITOR's linked record; ADMIN/OPS preview as the demo auditor.
-  const me = world?.auditors.find((a) => a.id === (user?.role === 'AUDITOR' && user.auditorId ? user.auditorId : 'adr_1')) ?? world?.auditors[0]
+  const isFieldUser = user?.role === 'AUDITOR' && !!user.auditorId
+  const me = world?.auditors.find((a) => a.id === (isFieldUser ? user!.auditorId! : 'adr_1')) ?? (isFieldUser ? undefined : world?.auditors[0])
+  // Every scope published to this field user (demo fallback is ADMIN/OPS preview only).
+  const myAssignments = useMemo((): Assignment[] => {
+    if (!world) return []
+    const mine = world.assignments.filter((a) => a.auditorId === (isFieldUser ? user!.auditorId! : 'adr_1'))
+    if (!isFieldUser && mine.length === 0) {
+      const demo = world.assignments.find((a) => a.id === 'asg_1')
+      return demo ? [demo] : []
+    }
+    return mine
+  }, [world, user, isFieldUser])
+  // Active scope = what the user picked; defaults to their first assignment.
   const assignment = useMemo(
-    () => world?.assignments.find((a) => a.auditorId === (user?.auditorId ?? 'adr_1')) ?? world?.assignments.find((a) => a.id === 'asg_1') ?? null,
-    [world, user],
+    () => myAssignments.find((a) => a.id === activeAsgId) ?? myAssignments[0] ?? null,
+    [myAssignments, activeAsgId],
   )
   const asgId = assignment?.id ?? 'asg_1'
   const myAssets = useMemo(() => (world ? world.assets.filter((a) => a.assignmentId === asgId) : []), [world, asgId])
@@ -100,9 +113,11 @@ export function MobileApp() {
         </div>
         <div className="mt-5 flex items-center gap-2">
           <ModuleSwitcher current="Auditor Mobile" direction="up" />
-          <button onClick={() => setSurface('landing')} className="rounded-lg border border-zinc-300 bg-white px-3.5 py-2 text-[13px] font-medium text-zinc-700 shadow-sm transition hover:border-emerald-400 hover:text-emerald-700">
-            ← Hub
-          </button>
+          {user?.role !== 'AUDITOR' && (
+            <button onClick={() => setSurface('landing')} className="rounded-lg border border-zinc-300 bg-white px-3.5 py-2 text-[13px] font-medium text-zinc-700 shadow-sm transition hover:border-emerald-400 hover:text-emerald-700">
+              ← Hub
+            </button>
+          )}
         </div>
       </div>
 
@@ -127,10 +142,43 @@ export function MobileApp() {
           {/* content */}
           <div className="min-h-0 flex-1 overflow-hidden bg-[#f4f7f3]">
             {tab === 'scan' ? (
-              <ScanFlow onExit={() => setTab('home')} online={online} />
+              isFieldUser && !assignment ? (
+                <div className="flex h-full flex-col bg-[#f4f7f3] text-zinc-900">
+                  <div className="flex items-center justify-between px-4 pb-2 pt-3">
+                    <button onClick={() => setTab('home')} className="flex items-center gap-1.5 text-[13px] font-medium text-zinc-700">
+                      <ChevronRight className="h-4 w-4 rotate-180" /> Home
+                    </button>
+                    <div className="text-[12px] font-bold uppercase tracking-widest text-emerald-700">Scan Asset</div>
+                    <div className="w-10" />
+                  </div>
+                  <div className="flex flex-1 flex-col items-center justify-center gap-3 px-8 pb-10 text-center">
+                    <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 ring-1 ring-amber-200"><ClipboardList className="h-7 w-7 text-amber-600" /></span>
+                    <div className="font-display text-[15px] font-bold text-zinc-900">No active scope</div>
+                    <p className="max-w-[250px] text-[12px] leading-relaxed text-zinc-500">Your ops team has not published a field scope to your account yet. Scanning unlocks as soon as a project is assigned to you.</p>
+                  </div>
+                </div>
+              ) : (
+                <ScanFlow onExit={() => setTab('home')} online={online} scope={assignment} />
+              )
             ) : (
               <div className="flex h-full flex-col bg-[#f4f7f3] text-zinc-900">
                 <div className="flex-1 overflow-y-auto px-4 pb-4 pt-2">
+                  {tab === 'home' && me && !assignment && (
+                    <div className="mt-2 rounded-2xl bg-white p-5 text-center shadow-sm ring-1 ring-zinc-900/[0.06]">
+                      <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 ring-1 ring-amber-200"><ClipboardList className="h-6 w-6 text-amber-600" /></span>
+                      <div className="font-display mt-3 text-[15px] font-bold text-zinc-900">No assignment yet</div>
+                      <p className="mx-auto mt-1 max-w-[240px] text-[12px] leading-relaxed text-zinc-500">
+                        Your ops team has not published a field scope to you. Once they assign a project it appears here automatically.
+                      </p>
+                    </div>
+                  )}
+                  {tab === 'home' && !me && (
+                    <div className="mt-2 rounded-2xl bg-white p-5 text-center shadow-sm ring-1 ring-zinc-900/[0.06]">
+                      <div className="font-display text-[15px] font-bold text-zinc-900">Account not linked to a field record</div>
+                      <p className="mx-auto mt-1 max-w-[240px] text-[12px] leading-relaxed text-zinc-500">Ask your operations team to link your login to a field team member.</p>
+                    </div>
+                  )}
+
                   {tab === 'home' && me && assignment && (
                     <>
                       <div className="flex items-center justify-between">
@@ -147,10 +195,21 @@ export function MobileApp() {
                         <div className="pointer-events-none absolute -bottom-12 -left-8 h-28 w-28 rounded-full bg-cyan-300/30 blur-2xl" aria-hidden />
                         <div className="relative flex items-center justify-between">
                           <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/85">Current assignment</span>
-                          <span className="rounded-full bg-white/15 px-2 py-0.5 font-mono text-[10px] font-semibold text-white ring-1 ring-white/25">AUD-2025-014</span>
+                          <span className="rounded-full bg-white/15 px-2 py-0.5 font-mono text-[10px] font-semibold text-white ring-1 ring-white/25">{world?.audits.find((x) => x.id === assignment.auditId)?.code ?? '—'}</span>
                         </div>
-                        <div className="relative mt-1 text-[14.5px] font-bold leading-snug text-white">{assignment.scope}</div>
-                        <div className="relative mt-0.5 flex items-center gap-1 text-[11px] font-medium text-white/75"><MapPin className="h-3 w-3" />Meridian Manufacturing · FY 2025–26</div>
+                        {myAssignments.length > 1 ? (
+                          <select
+                            value={assignment.id}
+                            onChange={(e) => setActiveAsgId(e.target.value)}
+                            className="relative mt-1 w-full appearance-none rounded-lg bg-white/15 px-2 py-1.5 text-[13.5px] font-bold leading-snug text-white ring-1 ring-white/25 outline-none [&>option]:text-zinc-900"
+                            aria-label="Switch field scope"
+                          >
+                            {myAssignments.map((a) => <option key={a.id} value={a.id}>{a.scope}</option>)}
+                          </select>
+                        ) : (
+                          <div className="relative mt-1 text-[14.5px] font-bold leading-snug text-white">{assignment.scope}</div>
+                        )}
+                        <div className="relative mt-0.5 flex items-center gap-1 text-[11px] font-medium text-white/75"><MapPin className="h-3 w-3" />{world?.clients.find((c) => c.id === world?.audits.find((x) => x.id === assignment.auditId)?.clientId)?.name ?? '—'} · {world?.audits.find((x) => x.id === assignment.auditId)?.financialYear ?? ''}</div>
                         <div className="relative mt-3 flex items-center gap-3">
                           <div className="relative h-16 w-16 shrink-0">
                             <svg viewBox="0 0 64 64" className="h-16 w-16 -rotate-90">
@@ -226,7 +285,7 @@ export function MobileApp() {
                     <>
                       <div className="font-display text-[16px] font-bold text-zinc-900">Assignments</div>
                       <div className="mt-3 space-y-2.5">
-                        {world?.assignments.filter((a) => a.auditorId === (user?.auditorId ?? 'adr_1')).map((a) => {
+                        {myAssignments.map((a) => {
                           const assets = world.assets.filter((x) => x.assignmentId === a.id)
                           const vs = world.verifications.filter((v) => v.assignmentId === a.id)
                           const done = new Set(vs.map((v) => v.assetId)).size
@@ -289,7 +348,7 @@ export function MobileApp() {
                             <div className="min-w-0"><div className="text-[10px] font-bold uppercase tracking-wide text-zinc-400">{k as string}</div><div className="truncate text-[12px] font-medium text-zinc-700">{v as string}</div></div>
                           </div>
                         ))}
-                        <button onClick={() => setSurface('landing')} className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-2.5 text-[12px] font-semibold text-red-600 shadow-sm ring-1 ring-zinc-900/[0.06] transition hover:bg-red-50">
+                        <button onClick={() => void logout()} className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-2.5 text-[12px] font-semibold text-red-600 shadow-sm ring-1 ring-zinc-900/[0.06] transition hover:bg-red-50">
                           <LogOut className="h-3.5 w-3.5" /> Sign out of field device
                         </button>
                       </div>

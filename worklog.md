@@ -250,3 +250,25 @@ Work Log:
 
 Stage Summary:
 - User can now unblock login in ~2 minutes: Neon Console → SQL Editor → paste download/neon-users.sql → Run, then sign in with admin@easysourcing.in / Admin@2026 (change passwords via Ops → Access). Generator script persisted at scripts/gen_neon_users_sql.ts for future password re-stamps
+
+---
+Task ID: 11
+Agent: Super Z (main)
+Task: Fix auditor-app logout bug (login page never appeared) + build the missing audit-project→field-team assignment flow; test all scenarios (user: "i logout but login page not appear... how to assign projects to field team... to much mistakes yar please fix and use all scenarios and check")
+
+Work Log:
+- ROOT CAUSE 1 (logout bug): MobileApp "Sign out of field device" called setSurface('landing') instead of logout() — for AUDITOR role surfacesForRole=['mobile'], so the router bounced straight back into the app with the session still alive; login page never appeared
+- ROOT CAUSE 2 (assignment gap): there was NO /api/core/audits route and no UI — audit projects/assignments existed only as seeded demo data; no way to create a project or publish a scope to a field team member from the product
+- NEW API src/app/api/core/audits/route.ts (RBAC team-only, session actor in audit log): POST create draft project (type whitelist, FY auto "FY 2026-27" Indian fiscal, code allocator AUD-<yyyy>-NNN max-scan, end>=start validation); PATCH assign (publish scope, auto-link unassigned assets at chosen location, draft→planning wake-up, cross-client location 400, recompute totalInScope) / unassign (transactional: assets released, verification history kept, assignment deleted, scope recomputed) / advance (lifecycle state machine, 409 past archived)
+- STORE: createAudit / assignAuditor / unassignAssignment / advanceAudit actions with server-error toasts
+- OPS UI (AuditsView): "New audit project" dialog (client, name, type, FY, dates, locations label — validation + disabled state); audit detail "Assign field team" dialog (team member, location with live "N unassigned assets will be linked" hint, auto-suggested editable scope label), per-scope withdraw with AlertDialog confirm, "Move to <next stage>" lifecycle button; client portal stays read-only (isOps gate)
+- MOBILE FIXES: real logout(); assignment resolution — field users see ONLY their own scopes (asg_1 fallback now exclusively ADMIN/OPS preview); "No assignment yet" + "Account not linked" empty states (home used to render blank); "No active scope" guard screen for scan; NEW scope switcher on the hero (native select) when a field user has >1 published scope; hero code/client/FY now dynamic (was hard-coded AUD-2025-014/Meridian); Hub button hidden for AUDITOR (they have no landing surface); ScanFlow refactored to take scope prop from the app shell (single source of truth)
+- module-contract: +2 endpoints, core-api 3.0.0 → 3.1.0
+- TESTS: NEW tests/whitebox/audits-crud.test.ts (10 tests: defaults+code+FY, 400/404 validation, CLIENT/anonymous RBAC 403, assign auto-link 3 + totalInScope, draft→planning, cross-client location 400, advance chain + archived 409, unassign releases assets/keeps history/recomputes, audit-trail actions AUDIT_CREATED/SCOPE_ASSIGNED/SCOPE_WITHDRAWN/AUDIT_STAGE)
+- E2E (agent-browser, all scenarios): admin → Ops → created AUD-2026-001 via dialog → assigned Arjun Mehta @ Assembly Line 1 ("3 assets linked") → draft auto-became Planning → admin logout → login page ✓; auditor@ login → hero + Jobs show the new scope 0/3 → scope switcher (2 scopes) → scan locked ES-MRD-00067 (new scope's asset) → verified MATCHED → "Synced to server" → Profile → Sign out → LOGIN PAGE APPEARS ✓ (bug fixed) → reload stays logged out (session really dead) ✓; client@ login → Audits read-only (no create/assign buttons) → sees AUD-2026-001 1/3 verified live; 390px no horizontal scroll; 0 console errors / 0 page errors
+- REGRESSION: lint clean; whitebox 128 pass (incl. 10 new); blackbox 41 pass; registry healthy core-api 3.1.0; screenshots .zscripts/e2e-client-audits-readonly.png, e2e-client-audit-detail.png
+
+Stage Summary:
+- Logout now really signs out on every module (mobile PWA included) and the login page always returns
+- The platform gained its missing core workflow: Ops creates audit projects and publishes field scopes; field team sees their projects on the device, scans within scope, and progress flows to Ops + Client portals live; lifecycle, scope withdrawal and audit-trail logging all server-enforced
+- 169 tests green (128 whitebox + 41 blackbox), lint clean

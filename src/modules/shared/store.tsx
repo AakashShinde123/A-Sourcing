@@ -63,6 +63,10 @@ interface Store {
   generateReport: (auditId: string) => Promise<void>
   finalizeReport: (auditId: string) => Promise<void>
   importAssets: (clientId: string, rows: Record<string, unknown>[]) => Promise<{ imported: number; skipped: number; rejected: number } | null>
+  createAudit: (data: { clientId: string; name: string; type: string; financialYear?: string; startDate?: string; endDate?: string; locationsLabel?: string }) => Promise<string | null>
+  assignAuditor: (auditId: string, auditorId: string, locationId: string | null, scope: string) => Promise<number | null>
+  unassignAssignment: (auditId: string, assignmentId: string) => Promise<boolean>
+  advanceAudit: (auditId: string) => Promise<boolean>
   addAuditor: (data: { name: string; email: string; phone?: string; city?: string }) => Promise<boolean>
   setAuditorStatus: (id: string, status: string) => Promise<boolean>
   removeAuditor: (id: string) => Promise<boolean>
@@ -230,6 +234,40 @@ export function ESProvider({ children }: { children: React.ReactNode }) {
 
   const openAudit = useCallback((id: string) => { setSelectedAuditId(id) }, [])
 
+  // ── Audit planning (Ops → Audit Projects) ──────────────────────
+  const createAudit = useCallback(async (data: { clientId: string; name: string; type: string; financialYear?: string; startDate?: string; endDate?: string; locationsLabel?: string }) => {
+    const res = await fetch(`${API_BASE}/audits`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+    if (!res.ok) { toast.error('Could not create audit project', { description: await apiError(res, `Core API responded ${res.status}`) }); return null }
+    const created = await res.json() as { audit: { id: string; code: string; name: string } }
+    toast.success(`${created.audit.code} created`, { description: 'Now assign a field team scope so auditors see it on their device.' })
+    await refresh()
+    return created.audit.id
+  }, [refresh])
+
+  const assignAuditor = useCallback(async (auditId: string, auditorId: string, locationId: string | null, scope: string) => {
+    const res = await fetch(`${API_BASE}/audits`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: auditId, action: 'assign', auditorId, locationId, scope }) })
+    if (!res.ok) { toast.error('Could not publish scope', { description: await apiError(res, `Core API responded ${res.status}`) }); return null }
+    const data = await res.json() as { attached: number }
+    toast.success('Field scope published', { description: `${data.attached} asset${data.attached === 1 ? '' : 's'} linked — visible on the auditor's device after their next sync.` })
+    await refresh()
+    return data.attached
+  }, [refresh])
+
+  const unassignAssignment = useCallback(async (auditId: string, assignmentId: string) => {
+    const res = await fetch(`${API_BASE}/audits`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: auditId, action: 'unassign', assignmentId }) })
+    if (!res.ok) { toast.error('Could not withdraw scope', { description: await apiError(res, `Core API responded ${res.status}`) }); return false }
+    toast.success('Scope withdrawn')
+    await refresh()
+    return true
+  }, [refresh])
+
+  const advanceAudit = useCallback(async (auditId: string) => {
+    const res = await fetch(`${API_BASE}/audits`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: auditId, action: 'advance' }) })
+    if (!res.ok) { toast.error('Stage move failed', { description: await apiError(res, `Core API responded ${res.status}`) }); return false }
+    await refresh()
+    return true
+  }, [refresh])
+
   const addAuditor = useCallback(async (data: { name: string; email: string; phone?: string; city?: string }) => {
     const res = await fetch(`${API_BASE}/auditors`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
     if (!res.ok) { toast.error('Could not add team member', { description: await apiError(res, `Core API responded ${res.status}`) }); return false }
@@ -278,8 +316,9 @@ export function ESProvider({ children }: { children: React.ReactNode }) {
     clientIdentityId, setClientIdentityId,
     asset360, openAsset360: (assetId) => setAsset360({ assetId }), closeAsset360: () => setAsset360(null),
     selectedAuditId, openAudit, refresh, submitVerifications, patchException, submitApproval, generateReport, finalizeReport, importAssets,
+    createAudit, assignAuditor, unassignAssignment, advanceAudit,
     addAuditor, setAuditorStatus, removeAuditor, addClient, setClientStatus, removeClient,
-  }), [user, authLoading, login, logout, world, loading, surface, opsView, clientView, clientIdentityId, asset360, selectedAuditId, refresh, submitVerifications, patchException, submitApproval, generateReport, finalizeReport, importAssets, addAuditor, setAuditorStatus, removeAuditor, addClient, setClientStatus, removeClient])
+  }), [user, authLoading, login, logout, world, loading, surface, opsView, clientView, clientIdentityId, asset360, selectedAuditId, refresh, submitVerifications, patchException, submitApproval, generateReport, finalizeReport, importAssets, createAudit, assignAuditor, unassignAssignment, advanceAudit, addAuditor, setAuditorStatus, removeAuditor, addClient, setClientStatus, removeClient])
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
