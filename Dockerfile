@@ -17,7 +17,9 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 # DATABASE_URL is only needed at RUNTIME (prisma reads env lazily), but the
 # generator requires a value at build time — point it at a throwaway file.
+# NEXT_OUTPUT_STANDALONE=1 opts next.config.ts into standalone server output.
 ENV DATABASE_URL="file:/tmp/build.db"
+ENV NEXT_OUTPUT_STANDALONE="1"
 RUN bunx prisma generate \
  && bun run build
 

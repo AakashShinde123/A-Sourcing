@@ -360,12 +360,18 @@ that link is what scopes their data access server-side.
 bun install --frozen-lockfile
 bun run lint                       # gate: must be clean
 bunx prisma generate && bunx prisma db push
-bun run build                      # standalone output → .next/standalone
+bun run build:standalone           # standalone output → .next/standalone
 DATABASE_URL=file:/data/custom.db NODE_ENV=production \
   node .next/standalone/server.js  # listens on :3000
 ```
 
 `package.json` also provides `bun run start` (wraps the same server with logs).
+
+> ℹ️ `bun run build` alone produces a **plain Vercel-style build** (no
+> `.next/standalone`). Standalone output is opt-in via `build:standalone`
+> (Docker sets `NEXT_OUTPUT_STANDALONE=1` itself). Keeping it off by default
+> is what makes `next build` succeed on Vercel — a forced standalone build
+> fails there with `ENOENT .next/next-server.js.nft.json`.
 
 ### 5.2 Docker (recommended)
 

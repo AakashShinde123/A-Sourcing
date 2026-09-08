@@ -251,7 +251,13 @@ export function ESProvider({ children }: { children: React.ReactNode }) {
     const res = await fetch(`${API_BASE}/audits`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: auditId, action: 'assign', auditorId, locationId, scope }) })
     if (!res.ok) { toast.error('Could not publish scope', { description: await apiError(res, `Core API responded ${res.status}`) }); return null }
     const data = await res.json() as { attached: number }
-    toast.success('Field scope published', { description: `${data.attached} asset${data.attached === 1 ? '' : 's'} linked — visible on the auditor's device after their next sync.` })
+    if (data.attached === 0) {
+      toast.warning('Scope published — but 0 assets linked', {
+        description: 'Assets attach by exact location match. Make sure the scope’s location matches the “Location” column used during register import, or the asset stays “not in any scope” on the auditor’s device.',
+      })
+    } else {
+      toast.success('Field scope published', { description: `${data.attached} asset${data.attached === 1 ? '' : 's'} linked — visible on the auditor's device after their next sync.` })
+    }
     await refresh()
     return data.attached
   }, [refresh])

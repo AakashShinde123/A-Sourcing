@@ -371,7 +371,7 @@ export function ScanFlow({ onExit, online, scope }: { onExit: () => void; online
                   <p className="mt-1 text-[11.5px] leading-relaxed text-amber-700">
                     {exactMineScope
                       ? `It belongs to “${exactMineScope.scope}”. Go to Home and switch the field scope to verify it.`
-                      : 'This asset is not linked to any field scope yet — ask your ops team to assign it.'}
+                      : <>It is registered at <b>{exact.locationLabel || 'no location'}</b> but no field scope covers it yet. Ask ops (Audits → open project → <b>Assign field team</b>) to publish a scope for <b>{exact.locationLabel || 'its location'}</b>.</>}
                   </p>
                 </div>
               )}
