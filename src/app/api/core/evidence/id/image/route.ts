@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireRole } from '@/lib/auth'
+import { ensureEvidenceImageColumn } from '@/lib/evidence-schema'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,6 +21,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const session = await requireRole(req, ['ADMIN', 'OPS', 'CLIENT', 'AUDITOR'])
   if (!session) return NextResponse.json({ error: 'Sign in to view evidence' }, { status: 403 })
 
+  await ensureEvidenceImageColumn()
+
   const { id } = await params
   const ev = await db.evidence.findUnique({ where: { id } })
   if (!ev) return NextResponse.json({ error: 'Evidence not found' }, { status: 404 })
@@ -33,7 +36,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!payload && ev.colorSeed.startsWith('data:image/')) {
     payload = ev.colorSeed
     // Opportunistic one-time repair — idempotent, single row, invisible to users.
-    await db.evidence.update({ where: { id: ev.id }, data: { image: payload, colorSeed: 'emerald' } })
+    // Best-effort: if the column doesn't exist (old schema, restricted role),
+    // we still serve the photo from the legacy channel below.
+    await db.evidence.update({ where: { id: ev.id }, data: { image: payload, colorSeed: 'emerald' } }).catch(() => {})
   }
   if (!payload) return NextResponse.json({ error: 'This evidence has no photo' }, { status: 404 })
 

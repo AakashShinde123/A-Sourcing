@@ -184,7 +184,18 @@ export function ESProvider({ children }: { children: React.ReactNode }) {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ operations: ops.map(({ label: _label, queuedAt: _q, ...op }) => op) }),
     })
-    if (!res.ok) { toast.error('Sync failed — operations kept in queue'); throw new Error('sync failed') }
+    if (!res.ok) {
+      // Surface WHY the server refused — a queue with no explanation sends ops
+      // in circles. The first line of the body is usually the exact cause.
+      const detail = await res.text().catch(() => '')
+      let reason = `HTTP ${res.status}`
+      try { reason = (JSON.parse(detail) as { error?: string }).error ?? reason } catch { /* raw body */ }
+      toast.error('Sync failed — operations kept in queue', {
+        description: `${reason}. They retry automatically when you're back online.`,
+        duration: 10000,
+      })
+      throw new Error('sync failed')
+    }
     const data = await res.json() as {
       applied: number; skipped: number
       items?: { operationId: string; status: string; assetCode?: string; assetId?: string; exceptionCode?: string }[]

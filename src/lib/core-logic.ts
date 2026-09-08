@@ -130,6 +130,42 @@ export function nextExceptionCode(existingCodes: string[], year = 2026): string 
   return `EX-${year}-${String(max + 1).padStart(4, '0')}`
 }
 
+// ─── Register valuation columns (import) ─────────────────────────────
+
+/** Money cell → number. Tolerates "₹1,20,000.50", " 45000 ", "1.2e4". Null when not a clean non-negative number. */
+export function parseMoney(v: unknown): number | null {
+  if (v === undefined || v === null) return null
+  const s = String(v).trim()
+  if (!s) return null
+  const n = Number(s.replace(/[₹$,\s]/g, ''))
+  return Number.isFinite(n) && n >= 0 ? n : null
+}
+
+/** Date cell → Date. Handles ISO, day-first 12/03/2024 (Indian standard), 03/12/2024,
+ *  "12-Mar-2024" and anything `new Date` understands. Null when unparseable. */
+export function parseFlexibleDate(v: unknown): Date | null {
+  if (v === undefined || v === null) return null
+  const s = String(v).trim()
+  if (!s) return null
+  const mk = (y: number, m: number, d: number): Date | null => {
+    if (m < 1 || m > 12 || d < 1 || d > 31 || y < 1990 || y > 2100) return null
+    return new Date(Date.UTC(y, m - 1, d))
+  }
+  let m = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})$/.exec(s)
+  if (m) {
+    let day = parseInt(m[1], 10)
+    let month = parseInt(m[2], 10)
+    const yearRaw = parseInt(m[3], 10)
+    const year = yearRaw < 100 ? yearRaw + 2000 : yearRaw
+    if (month > 12 && day <= 12) [day, month] = [month, day] // US-style mm/dd input
+    return mk(year, month, day)
+  }
+  m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s)
+  if (m) return mk(parseInt(m[1], 10), parseInt(m[2], 10), parseInt(m[3], 10))
+  const native = new Date(s)
+  return Number.isNaN(native.getTime()) ? null : native
+}
+
 // ─── Exception lifecycle state machine ───────────────────────────────
 
 /**

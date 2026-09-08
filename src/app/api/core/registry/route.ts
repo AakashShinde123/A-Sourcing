@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { ensureEvidenceImageColumn } from '@/lib/evidence-schema'
 import { CORE_API, MODULES, PLATFORM, SHARED_KERNEL } from '@/modules/hub/registry'
 
 export const dynamic = 'force-dynamic'
@@ -14,6 +15,9 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET() {
   const started = Date.now()
+
+  // Evidence counts SELECT the photo column — make sure it exists first.
+  await ensureEvidenceImageColumn()
 
   // Liveness: the core service proves its own health by touching the DB.
   let dbOk = true

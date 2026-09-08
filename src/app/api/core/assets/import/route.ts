@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
 import { requireRole } from '@/lib/auth'
+import { parseMoney, parseFlexibleDate } from '@/lib/core-logic'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,6 +21,9 @@ export interface ImportRow {
   barcode?: unknown
   locationLabel?: unknown
   custodian?: unknown
+  purchaseCost?: unknown
+  purchaseDate?: unknown
+  currentValue?: unknown
 }
 
 const str = (v: unknown): string | null => {
@@ -103,7 +107,7 @@ export async function POST(req: NextRequest) {
   // a re-import can PATCH (register re-sync) instead of being silently dropped.
   const existingAssets = await db.asset.findMany({
     where: { clientId },
-    select: { id: true, clientAssetId: true, code: true, description: true, category: true, make: true, model: true, serialNumber: true, barcode: true, locationId: true, custodian: true },
+    select: { id: true, clientAssetId: true, code: true, description: true, category: true, make: true, model: true, serialNumber: true, barcode: true, locationId: true, custodian: true, purchaseCost: true, purchaseDate: true, currentValue: true },
   })
   const seenInBatch = new Set(existingAssets.map((a) => a.clientAssetId))
   const existingByKey = new Map(existingAssets.map((a) => [a.clientAssetId, a]))
@@ -137,6 +141,11 @@ export async function POST(req: NextRequest) {
     const locationId = locationLabel ? locationByKey.get(locationLabel.toLowerCase()) ?? null : null
     if (locationLabel && !locationId) locationsUnlinked++
 
+    // Valuation columns (optional): cost & dates power the depreciation report.
+    const purchaseCost = parseMoney(raw.purchaseCost)
+    const purchaseDate = parseFlexibleDate(raw.purchaseDate)
+    const currentValue = parseMoney(raw.currentValue)
+
     // In-batch repeat of an ID we just created → duplicate (first occurrence wins).
     if (inBatch.has(clientAssetId)) {
       skipped++
@@ -147,7 +156,7 @@ export async function POST(req: NextRequest) {
     // Existing row → register re-sync: patch changed fields, keep the ES code.
     const prev = existingByKey.get(clientAssetId)
     if (prev) {
-      const patch: Record<string, string | null> = {}
+      const patch: Record<string, string | number | Date | null> = {}
       const consider = (k: string, v: string | null) => { if (v !== null && v !== prev[k as keyof typeof prev]) patch[k] = v }
       consider('description', description)
       consider('category', category)
@@ -157,6 +166,10 @@ export async function POST(req: NextRequest) {
       consider('barcode', str(raw.barcode))
       consider('custodian', str(raw.custodian))
       if (locationId && locationId !== prev.locationId) patch.locationId = locationId
+      // Numbers & dates are diffed explicitly (consider() compares strings).
+      if (purchaseCost !== null && purchaseCost !== prev.purchaseCost) patch.purchaseCost = purchaseCost
+      if (purchaseDate && purchaseDate.getTime() !== prev.purchaseDate?.getTime()) patch.purchaseDate = purchaseDate
+      if (currentValue !== null && currentValue !== prev.currentValue) patch.currentValue = currentValue
 
       if (Object.keys(patch).length === 0) {
         skipped++
@@ -192,6 +205,9 @@ export async function POST(req: NextRequest) {
           barcode: str(raw.barcode),
           locationId,
           custodian: str(raw.custodian),
+          purchaseCost,
+          purchaseDate,
+          currentValue,
           status: 'registered',
         },
       })

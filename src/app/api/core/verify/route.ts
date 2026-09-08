@@ -5,6 +5,7 @@ import {
   validateSyncOp, severityFor, EXCEPTION_TYPES, nextExceptionCode,
 } from '@/lib/core-logic'
 import { requireRole } from '@/lib/auth'
+import { ensureEvidenceImageColumn } from '@/lib/evidence-schema'
 
 export const dynamic = 'force-dynamic'
 
@@ -197,17 +198,36 @@ export async function POST(req: NextRequest) {
 
     // Real evidence: each captured photo's JPEG data URL is stored verbatim and
     // streamed back to the portals via /api/core/evidence/[id]/image.
-    for (let i = 0; i < op.photos.length; i++) {
-      await db.evidence.create({
-        data: {
+    // An evidence problem must NEVER fail the verification (the field result is
+    // the source of truth): try image column → legacy colorSeed channel → bare row.
+    if (op.photos.length) {
+      const imageOk = await ensureEvidenceImageColumn()
+      for (let i = 0; i < op.photos.length; i++) {
+        const payload = op.photos[i]
+        const base = {
           verificationId: v.id, auditId: op.auditId, assetId, clientId: audit.clientId,
           kind: 'photo', label: op.photos.length > 1 ? `Field photo ${i + 1}` : 'Field photo',
-          image: op.photos[i],
-          colorSeed: seedFor(op.operationId, i),
           capturedBy: auditor.name,
           gpsLat: op.gpsLat, gpsLng: op.gpsLng, capturedAt: verifiedAt,
-        },
-      })
+        }
+        try {
+          await db.evidence.create({
+            data: {
+              ...base,
+              ...(imageOk ? { image: payload } : { colorSeed: payload }), // legacy channel renders identically
+              ...(imageOk ? { colorSeed: seedFor(op.operationId, i) } : {}),
+            },
+          })
+        } catch {
+          // Column vanished mid-flight or unknown DB issue — retry through the
+          // legacy colorSeed channel; final resort: plain row (photo skipped).
+          try {
+            await db.evidence.create({ data: { ...base, colorSeed: payload } })
+          } catch {
+            await db.evidence.create({ data: { ...base, colorSeed: 'emerald' } }).catch(() => {})
+          }
+        }
+      }
     }
 
     let exceptionCode: string | undefined

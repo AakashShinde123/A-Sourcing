@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSessionUser, type SessionUser } from '@/lib/auth'
+import { ensureEvidenceImageColumn } from '@/lib/evidence-schema'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,6 +30,10 @@ function photoCountOf(json: string | null): number {
 export async function GET(req: NextRequest) {
   const user = await getSessionUser(req)
   if (!user) return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+
+  // Evidence queries SELECT the photo column — guarantee it exists first
+  // (self-migrating deployments; see evidence-schema.ts).
+  await ensureEvidenceImageColumn()
 
   const [clientsRaw, locationsRaw, assetsRaw, auditorsRaw, auditsRaw, assignmentsRaw, verificationsRaw, exceptionsRaw, evidenceRaw, reportsRaw, approvalsRaw, auditLogsRaw] =
     await Promise.all([
