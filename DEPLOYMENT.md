@@ -91,7 +91,10 @@ any phone, install the Auditor app from, and scan with the camera.
    bun run db:push:pg                 # push schema to Neon (set DATABASE_URL first)
    ```
    (Skip both if your Neon tables already exist — you did this when you first
-   connected Neon.)
+   connected Neon. **After every app update, run it once more** — it adds new
+   columns like `Evidence.image` (field photos) without touching your data.
+   Can't run it locally? Paste `prisma/neon-evidence-image.sql` into the Neon
+   SQL Editor instead — same result, one paste.)
 2. **Make sure login accounts exist** — run `prisma/neon-users.sql` in
    Neon Console → SQL Editor (see §4.5). Skip if you already did this.
 3. **Create the location tree — right in the app (no SQL needed)**:
@@ -243,6 +246,12 @@ bun prisma/seed.ts           # realistic 5-client, 165-asset demo world
 
 > ⚠️ Never seed a real production environment — the seed overwrites demo
 > entities with deterministic codes (`aud_1`, `ES-MRD-*`, …).
+
+**Evidence photos** live directly in the database (`Evidence.image`, a compact
+≈30–100 KB JPEG per photo after the phone downsizes it to 800 px). No file
+storage bucket is required at free tier; ~1,000 field photos ≈ 60–100 MB. When
+volume grows, migrate the column to object storage (R2/S3) — the portals read
+photos through `GET /api/core/evidence/[id]/image`, so only that handler changes.
 
 ### 4.3 Switching to PostgreSQL (recommended for real production)
 
@@ -542,6 +551,8 @@ the booted container → build image → tag with module manifest semver → dep
 | Ops → Locations tab is empty on Neon | location tree never created (`neon-users.sql` only seeds accounts) | Ops → Locations → **Add location** in the app (or run `prisma/neon-locations.sql`), then re-import the register (re-import updates + links locations) |
 | Import says "N rows had a location name that doesn't exist" | Excel `Location` strings don't match any tree node name | create the matching locations, then re-import the same file — assets get patched, codes stay |
 | Manual scan shows "exists — but not in this scope" | asset's location has no published field scope | Ops → Audits → open project → Assign field team → pick the location the card names |
+| Evidence shows a grey/coloured box instead of the photo | rows from the old build kept the image inside `colorSeed`, or the `Evidence.image` column doesn't exist yet on Neon | run `prisma/neon-evidence-image.sql` once in the SQL Editor (or `bun run db:push:pg`); after that every photo — old and new — renders, no further action |
+| Evidence photo missing entirely (placeholder with camera icon) | verification was saved without photos, or the file input was dismissed on the phone | re-verify the asset and tap **Photo** (up to 3); photos are stored in the DB (`Evidence.image`) — no file storage needed |
 | "Account temporarily locked" at login | 5 failed tries on that email in 15 min | wait ~15 min, then sign in with the correct password |
 | Sync returns `applied: 0, rejected: N` | mobile ops failed reference validation | inspect `items[].error` — usually stale audit/asset ids on device |
 | `409 Illegal transition` from UI automation | lifecycle action replayed on moved exception | expected — the state machine rejected a stale click |

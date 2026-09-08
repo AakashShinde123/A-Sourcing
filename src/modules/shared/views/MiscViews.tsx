@@ -558,7 +558,7 @@ export function EvidenceView({ clientIdScope }: { clientIdScope?: string }) {
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
           {evidence.slice(0, 36).map((e) => (
             <div key={e.id} className="group overflow-hidden card transition hover:shadow-md">
-              <EvidenceThumb seed={e.colorSeed} code={e.assetCode} kind={e.kind} className="rounded-none" />
+              <EvidenceThumb seed={e.colorSeed} code={e.assetCode} kind={e.kind} className="rounded-none" src={e.hasImage ? `/api/core/evidence/${e.id}/image` : null} />
               <div className="p-2">
                 <div className="truncate text-[11px] font-medium text-zinc-700">{e.label}</div>
                 <div className="truncate text-[10px] text-zinc-400">{auditLabel(e.auditId)} · {e.capturedBy}</div>

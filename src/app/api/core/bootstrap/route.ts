@@ -4,6 +4,15 @@ import { getSessionUser, type SessionUser } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
+/** Photo slot markers → count. Legacy rows kept raw data URLs here; they are
+ *  never shipped to clients — only their count (images live on Evidence.image). */
+function photoCountOf(json: string | null): number {
+  try {
+    const a = JSON.parse(json ?? '[]')
+    return Array.isArray(a) ? a.length : 0
+  } catch { return 0 }
+}
+
 /**
  * GET /api/core/bootstrap — the platform world in one payload.
  * Aggregates are computed server-side; the SPA consumes this directly.
@@ -178,7 +187,8 @@ export async function GET(req: NextRequest) {
       assetId: v.assetId, assetCode: v.asset?.code ?? null, assetDescription: v.asset?.description ?? null,
       auditorId: v.auditorId, auditorName: v.auditor?.name ?? '—', result: v.result, method: v.method,
       gpsLat: v.gpsLat, gpsLng: v.gpsLng, gpsAccuracy: v.gpsAccuracy, gpsStatus: v.gpsStatus,
-      remarks: v.remarks, photos: v.photos, createdOffline: v.createdOffline,
+      remarks: v.remarks,
+      photoCount: photoCountOf(v.photos), createdOffline: v.createdOffline,
       verifiedAt: v.verifiedAt, syncedAt: v.syncedAt,
     })),
     exceptions: exceptions.map((e) => ({
@@ -192,6 +202,7 @@ export async function GET(req: NextRequest) {
       id: ev.id, verificationId: ev.verificationId, auditId: ev.auditId, assetId: ev.assetId,
       assetCode: ev.asset?.code ?? null, clientId: ev.clientId, kind: ev.kind, label: ev.label,
       colorSeed: ev.colorSeed, capturedBy: ev.capturedBy, gpsLat: ev.gpsLat, gpsLng: ev.gpsLng, capturedAt: ev.capturedAt,
+      hasImage: Boolean(ev.image) || ev.colorSeed.startsWith('data:image/'),
     })),
     reports, approvals,
     auditLogs: auditLogs.slice(0, 60),

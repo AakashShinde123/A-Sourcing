@@ -134,7 +134,7 @@ export function Asset360Drawer() {
                         <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
                           {evidence.map((e) => (
                             <div key={e.id}>
-                              <EvidenceThumb seed={e.colorSeed} code={asset.code} kind={e.kind} />
+                              <EvidenceThumb seed={e.colorSeed} code={asset.code} kind={e.kind} src={e.hasImage ? `/api/core/evidence/${e.id}/image` : null} />
                               <div className="mt-1 truncate text-[11px] text-zinc-500">{e.label}</div>
                               <div className="text-[10px] text-zinc-400">{fmtDate(e.capturedAt)}</div>
                             </div>

@@ -93,20 +93,42 @@ export function Bar({ value, className, barClass }: { value: number; className?:
   )
 }
 
-// ── Fake "photo" evidence thumbnail (deterministic abstract visual) ──
-export function EvidenceThumb({ seed, code, kind = 'photo', className }: { seed: string; code?: string | null; kind?: string; className?: string }) {
+// ── Evidence thumbnail — renders the REAL captured photo when one exists ──
+export function EvidenceThumb({ seed, code, kind = 'photo', src, className }: { seed: string; code?: string | null; kind?: string; src?: string | null; className?: string }) {
   const c = seedColor[seed] ?? seedColor.emerald
+  const [broken, setBroken] = React.useState(false)
+  const live = Boolean(src) && !broken
   return (
     <div className={cn(
-      'relative flex items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br shadow-sm ring-1 ring-black/5 aspect-[4/3]',
-      c.from, c.to, className,
+      'relative flex items-center justify-center overflow-hidden rounded-xl shadow-sm ring-1 ring-black/5 aspect-[4/3]',
+      live ? 'bg-zinc-200' : cn('bg-gradient-to-br', c.from, c.to), className,
     )}>
-      <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 30% 30%, white 1px, transparent 1px)', backgroundSize: '12px 12px' }} />
-      <div className="absolute -right-3 -top-3 h-12 w-12 rounded-full bg-white/15 blur-xl" aria-hidden />
-      <div className="relative flex flex-col items-center gap-1 text-white/90 drop-shadow-sm">
-        {kind === 'gps' ? <MapPin className="h-5 w-5" /> : <Camera className="h-5 w-5" />}
-        {code && <span className="max-w-[90%] truncate rounded bg-black/25 px-1.5 py-0.5 font-mono text-[9px] tracking-wide backdrop-blur-sm">{code}</span>}
-      </div>
+      {live ? (
+        <img
+          src={src ?? undefined}
+          alt={code ? `Field evidence — ${code}` : 'Field evidence'}
+          loading="lazy"
+          decoding="async"
+          onError={() => setBroken(true)}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      ) : (
+        <>
+          <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 30% 30%, white 1px, transparent 1px)', backgroundSize: '12px 12px' }} />
+          <div className="absolute -right-3 -top-3 h-12 w-12 rounded-full bg-white/15 blur-xl" aria-hidden />
+        </>
+      )}
+      {live ? (
+        <span className="absolute bottom-1 left-1 flex max-w-[calc(100%-0.5rem)] items-center gap-1 rounded bg-black/50 px-1.5 py-0.5 font-mono text-[9px] tracking-wide text-white backdrop-blur-sm">
+          <Camera className="h-2.5 w-2.5 shrink-0" />
+          {code && <span className="truncate">{code}</span>}
+        </span>
+      ) : (
+        <div className="relative flex flex-col items-center gap-1 text-white/90 drop-shadow-sm">
+          {kind === 'gps' ? <MapPin className="h-5 w-5" /> : <Camera className="h-5 w-5" />}
+          {code && <span className="max-w-[90%] truncate rounded bg-black/25 px-1.5 py-0.5 font-mono text-[9px] tracking-wide backdrop-blur-sm">{code}</span>}
+        </div>
+      )}
     </div>
   )
 }

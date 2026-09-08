@@ -8,6 +8,14 @@ import { requireRole } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
+/** Deterministic accent per evidence row (palette mirrors shared/format seedColor). */
+const PHOTO_SEEDS = ['emerald', 'teal', 'amber', 'rose', 'orange'] as const
+function seedFor(operationId: string, index: number): string {
+  let h = 0
+  for (let i = 0; i < operationId.length; i++) h = (h * 31 + operationId.charCodeAt(i)) >>> 0
+  return PHOTO_SEEDS[(h + index) % PHOTO_SEEDS.length]
+}
+
 /** SQLite/unique races (parallel mobile retries) surface as P2002 — degrade gracefully. */
 function isUniqueViolation(e: unknown): boolean {
   return e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002'
@@ -160,7 +168,8 @@ export async function POST(req: NextRequest) {
           gpsAccuracy: op.gpsAccuracy,
           gpsStatus: op.gpsStatus,
           remarks: op.remarks,
-          photos: JSON.stringify(op.photos),
+          // Slot markers only — the real JPEG payloads live on Evidence.image.
+          photos: JSON.stringify(op.photos.map((_, i) => `photo-${i + 1}`)),
           createdOffline: op.createdOffline,
           verifiedAt,
         },
@@ -186,11 +195,15 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    for (const seed of op.photos) {
+    // Real evidence: each captured photo's JPEG data URL is stored verbatim and
+    // streamed back to the portals via /api/core/evidence/[id]/image.
+    for (let i = 0; i < op.photos.length; i++) {
       await db.evidence.create({
         data: {
           verificationId: v.id, auditId: op.auditId, assetId, clientId: audit.clientId,
-          kind: 'photo', label: 'Field photo', colorSeed: seed,
+          kind: 'photo', label: op.photos.length > 1 ? `Field photo ${i + 1}` : 'Field photo',
+          image: op.photos[i],
+          colorSeed: seedFor(op.operationId, i),
           capturedBy: auditor.name,
           gpsLat: op.gpsLat, gpsLng: op.gpsLng, capturedAt: verifiedAt,
         },
@@ -226,7 +239,7 @@ export async function POST(req: NextRequest) {
         description: op.discovery!.description,
         locationLabel: op.discovery!.locationLabel ?? null,
         detectedBy: auditor.name,
-        detail: JSON.stringify({ ...(op.discovery ?? {}), photos: op.photos }),
+        detail: JSON.stringify({ ...(op.discovery ?? {}), photoCount: op.photos.length }),
       })
       discoveryExceptionCode = exceptionCode
     } else if (EXCEPTION_TYPES[op.result]) {

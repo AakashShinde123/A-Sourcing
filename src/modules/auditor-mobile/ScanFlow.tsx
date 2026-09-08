@@ -43,14 +43,14 @@ async function shrinkPhoto(file: File): Promise<string | null> {
     const url = URL.createObjectURL(file)
     const img = new Image()
     await new Promise<void>((res, rej) => { img.onload = () => res(); img.onerror = () => rej(new Error('decode')); img.src = url })
-    const max = 640
+    const max = 800
     const scale = Math.min(1, max / Math.max(img.width, img.height))
     const canvas = document.createElement('canvas')
     canvas.width = Math.max(1, Math.round(img.width * scale))
     canvas.height = Math.max(1, Math.round(img.height * scale))
     canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
     URL.revokeObjectURL(url)
-    return canvas.toDataURL('image/jpeg', 0.55)
+    return canvas.toDataURL('image/jpeg', 0.6)
   } catch { return null }
 }
 

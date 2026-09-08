@@ -35,7 +35,7 @@ export interface Verification {
   assetId: string | null; assetCode: string | null; assetDescription: string | null
   auditorId: string; auditorName: string; result: string; method: string
   gpsLat: number | null; gpsLng: number | null; gpsAccuracy: number | null; gpsStatus: string
-  remarks: string | null; photos: string; createdOffline: boolean; verifiedAt: string; syncedAt: string
+  remarks: string | null; photoCount: number; createdOffline: boolean; verifiedAt: string; syncedAt: string
 }
 
 export interface ExceptionItem {
@@ -49,6 +49,8 @@ export interface EvidenceItem {
   id: string; verificationId: string | null; auditId: string | null; assetId: string | null
   assetCode: string | null; clientId: string; kind: string; label: string; colorSeed: string
   capturedBy: string | null; gpsLat: number | null; gpsLng: number | null; capturedAt: string
+  /** true when a real captured photo exists — served by /api/core/evidence/[id]/image */
+  hasImage: boolean
 }
 
 export interface Report {

@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -183,7 +183,7 @@ model Verification {
   gpsAccuracy   Float?
   gpsStatus     String  @default("captured") // captured | unavailable
   remarks       String?
-  photos        String? @default("[]") // JSON array of color seeds
+  photos        String? @default("[]") // JSON slot markers ["photo-1", …] — real images live on Evidence.image
   createdOffline Boolean @default(false)
   verifiedAt    DateTime
   syncedAt      DateTime @default(now())
@@ -200,6 +200,7 @@ model Evidence {
   clientId       String
   kind           String // photo | gps | document
   label          String
+  image          String? // captured photo as a compact JPEG data URL — rendered verbatim in portals
   colorSeed      String  @default("emerald")
   capturedBy     String?
   gpsLat         Float?

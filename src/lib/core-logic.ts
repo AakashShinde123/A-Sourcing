@@ -8,6 +8,10 @@
 
 // ─── Verification sync engine ────────────────────────────────────────
 
+/** Evidence photo limits — the field app downscales to 800px JPEG (≈30–100 KB each). */
+export const PHOTO_MAX_COUNT = 3
+export const PHOTO_MAX_CHARS = 1_200_000 // ~900 KB binary per photo after base64
+
 /** Every verification result the mobile contract allows. */
 export const VERIFICATION_RESULTS = [
   'matched',
@@ -63,6 +67,12 @@ export function validateSyncOp(op: unknown): { ok: true; value: SyncOpNormalized
     }
   }
   if (o.photos !== undefined && !Array.isArray(o.photos)) return { ok: false, error: 'photos must be an array' }
+  // Evidence photos must be real image payloads (compact JPEG data URLs from the
+  // field app). Anything else — old seed names, junk strings, oversized blobs —
+  // is silently dropped so one bad row can never poison a verification.
+  const photos = Array.isArray(o.photos)
+    ? (o.photos as unknown[]).filter((p): p is string => typeof p === 'string' && p.startsWith('data:image/') && p.length <= PHOTO_MAX_CHARS).slice(0, PHOTO_MAX_COUNT)
+    : []
   return {
     ok: true,
     value: {
@@ -74,7 +84,7 @@ export function validateSyncOp(op: unknown): { ok: true; value: SyncOpNormalized
       result: o.result as VerificationResult,
       method: typeof o.method === 'string' ? o.method : 'scan',
       remarks: typeof o.remarks === 'string' ? o.remarks : null,
-      photos: Array.isArray(o.photos) ? (o.photos as unknown[]).filter((p): p is string => typeof p === 'string') : [],
+      photos,
       createdOffline: o.createdOffline === true,
       discovery: (typeof o.discovery === 'object' && o.discovery !== null) ? (o.discovery as SyncOpNormalized['discovery']) : undefined,
       verifiedAt: typeof o.verifiedAt === 'string' ? o.verifiedAt : undefined,
