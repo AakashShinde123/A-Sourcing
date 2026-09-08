@@ -24,22 +24,28 @@ function escapeHtml(s: string): string {
  * falling back to the ES code) plus human-readable code, description, serial
  * and client for manual reconciliation.
  *
- * RBAC: ADMIN/OPS only (label generation is an ops workflow; the register
- * itself is team-only data).
+ * RBAC: ADMIN/OPS generate sheets from the register; AUDITOR may fetch labels
+ * too — field teams tag newly discovered assets on the spot (the mobile app
+ * links straight here after a discovery sync). The register itself stays
+ * team-only data.
  */
 export async function GET(req: NextRequest) {
-  if (!(await requireRole(req, ['ADMIN', 'OPS']))) {
-    return NextResponse.json({ error: 'Only operations accounts may generate asset labels' }, { status: 403 })
+  if (!(await requireRole(req, ['ADMIN', 'OPS', 'AUDITOR']))) {
+    return NextResponse.json({ error: 'Only team accounts may generate asset labels' }, { status: 403 })
   }
 
+  // Two selectors: ?ids= (register workflows) and ?codes= (field discovery —
+  // the mobile app only learns the freshly allocated ES code, not the id).
   const idsRaw = req.nextUrl.searchParams.get('ids') ?? ''
+  const codesRaw = req.nextUrl.searchParams.get('codes') ?? ''
   const ids = [...new Set(idsRaw.split(',').map((s) => s.trim()).filter(Boolean))].slice(0, 500)
-  if (ids.length === 0) {
-    return NextResponse.json({ error: 'Provide ?ids=assetId1,assetId2 (max 500)' }, { status: 400 })
+  const codes = [...new Set(codesRaw.split(',').map((s) => s.trim()).filter(Boolean))].slice(0, 500)
+  if (ids.length === 0 && codes.length === 0) {
+    return NextResponse.json({ error: 'Provide ?ids=assetId1,assetId2 or ?codes=ES-XXX-00001 (max 500)' }, { status: 400 })
   }
 
   const assets = await db.asset.findMany({
-    where: { id: { in: ids } },
+    where: { OR: [...(ids.length ? [{ id: { in: ids } }] : []), ...(codes.length ? [{ code: { in: codes } }] : [])] },
     include: { client: { select: { name: true, code: true } }, location: { select: { name: true } } },
     orderBy: [{ clientId: 'asc' }, { code: 'asc' }],
   })

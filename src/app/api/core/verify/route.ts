@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
   let applied = 0
   let skipped = 0
   let rejected = 0
-  const items: { operationId: string; status: 'applied' | 'duplicate' | 'rejected'; error?: string; exceptionCode?: string }[] = []
+  const items: { operationId: string; status: 'applied' | 'duplicate' | 'rejected'; error?: string; exceptionCode?: string; assetCode?: string; assetId?: string }[] = []
 
   // Code generators read the table once per batch and advance in memory —
   // two discoveries/exceptions inside one batch can never collide.
@@ -105,6 +105,7 @@ export async function POST(req: NextRequest) {
     }
 
     let discoveryExceptionCode: string | undefined
+    let discoveryAsset: typeof asset = null
 
     if (op.result === 'unregistered') {
       // Floor-to-sheet discovery: create an unregistered asset record.
@@ -138,6 +139,7 @@ export async function POST(req: NextRequest) {
         continue
       }
       assetId = createdAsset.id
+      discoveryAsset = createdAsset
     }
     const effectiveAsset = op.result === 'unregistered' ? await db.asset.findUnique({ where: { id: assetId! } }) : asset
 
@@ -268,7 +270,13 @@ export async function POST(req: NextRequest) {
     }
 
     applied++
-    items.push({ operationId: op.operationId, status: 'applied', exceptionCode: discoveryExceptionCode ?? exceptionCode })
+    items.push({
+      operationId: op.operationId, status: 'applied',
+      exceptionCode: discoveryExceptionCode ?? exceptionCode,
+      // Discoveries echo the freshly allocated register identity so the field
+      // app can show + print the QR tag for the new asset immediately.
+      ...(discoveryAsset ? { assetCode: discoveryAsset.code, assetId: discoveryAsset.id } : {}),
+    })
   }
 
   return NextResponse.json({ applied, skipped, rejected, items })

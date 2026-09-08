@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import { v4 as uuid } from 'uuid'
 import {
   ScanLine, Camera, MapPin, MapPinOff, CheckCircle2, XCircle, AlertTriangle, ArrowLeft,
-  Search, PackageSearch, Plus, Loader2, RefreshCw, Clock, CameraOff,
+  Search, PackageSearch, Plus, Loader2, RefreshCw, Clock, CameraOff, QrCode, Printer,
 } from 'lucide-react'
 import { useES } from '@/modules/shared/store'
 import type { Asset, Assignment, QueueOp } from '@/modules/shared/types'
@@ -66,6 +66,7 @@ export function ScanFlow({ onExit, online, scope }: { onExit: () => void; online
   const [gpsLocating, setGpsLocating] = useState(false)
   const [searchQ, setSearchQ] = useState('')
   const [savedResult, setSavedResult] = useState<string | null>(null)
+  const [savedDiscovery, setSavedDiscovery] = useState<{ code: string } | null>(null)
   const [disc, setDisc] = useState({ description: '', make: '', model: '', serial: '', condition: 'good' })
 
   // real camera state
@@ -220,7 +221,7 @@ export function ScanFlow({ onExit, online, scope }: { onExit: () => void; online
 
   useEffect(() => () => stopCamera(), []) // final unmount safety
 
-  function reset() { setStage('viewfinder'); setAsset(null); setResult(null); setPhotos([]); setRemarks(''); setGps(null) }
+  function reset() { setStage('viewfinder'); setAsset(null); setResult(null); setPhotos([]); setRemarks(''); setGps(null); setSavedDiscovery(null) }
 
   async function buildAndSave(res: string, discovery?: Partial<QueueOp['discovery']>) {
     if (!world || !assignment) return
@@ -247,8 +248,12 @@ export function ScanFlow({ onExit, online, scope }: { onExit: () => void; online
     if (online) {
       try {
         const r = await submitVerifications([op])
-        toast.success(res === 'matched' ? 'Verified & synced' : 'Recorded & synced', {
-          description: res === 'matched' ? `${asset?.code} reconciled as MATCHED.` : 'Exception opened automatically.',
+        const item = r.items?.find((i) => i.operationId === op.operationId)
+        if (discovery && item?.assetCode) setSavedDiscovery({ code: item.assetCode })
+        toast.success(res === 'matched' ? 'Verified & synced' : discovery ? 'New asset registered' : 'Recorded & synced', {
+          description: discovery
+            ? `${item?.assetCode ?? 'Asset'} added to the register — print its QR tag below.`
+            : res === 'matched' ? `${asset?.code} reconciled as MATCHED.` : 'Exception opened automatically.',
           icon: <RefreshCw className="h-4 w-4" />,
         })
         if (r.skipped > 0) toast.info(`${r.skipped} duplicate operation(s) skipped — sync is idempotent`)
@@ -505,16 +510,43 @@ export function ScanFlow({ onExit, online, scope }: { onExit: () => void; online
       )}
 
       {stage === 'done' && (
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 px-8 text-center">
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 overflow-y-auto px-8 py-4 text-center">
           <span className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-emerald-100 to-teal-100 ring-1 ring-emerald-500/30">
             <CheckCircle2 className="h-8 w-8 text-emerald-600" />
           </span>
           <div>
             <div className="font-display text-[15px] font-bold text-zinc-900">{online ? 'Synced to server' : 'Queued on device'}</div>
             <div className="mt-1 text-[12px] leading-relaxed text-zinc-600">
-              {asset?.code ?? 'Discovery'} recorded{savedResult && savedResult !== 'matched' ? ' — exception opened for the ops team' : ' as matched'}. Operation ID keeps sync idempotent.
+              {savedDiscovery
+                ? 'New asset added to the register — tag it so it scans next time.'
+                : `${asset?.code ?? 'Discovery'} recorded${savedResult && savedResult !== 'matched' ? ' — exception opened for the ops team' : ' as matched'}. Operation ID keeps sync idempotent.`}
             </div>
           </div>
+
+          {savedDiscovery && (
+            <div className="w-full rounded-2xl bg-white p-4 shadow-[0_10px_30px_-12px_rgba(6,78,59,0.25)] ring-1 ring-emerald-500/40">
+              <div className="flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-widest text-emerald-700">
+                <QrCode className="h-3.5 w-3.5" /> New asset code
+              </div>
+              <div className="mt-1 font-mono text-[18px] font-bold tracking-wide text-zinc-900">{savedDiscovery.code}</div>
+              <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">
+                Saved to the central register{online ? '' : ' after sync'} · visible to Ops &amp; Client instantly.
+              </p>
+              {online && (
+                <button
+                  onClick={() => window.open(`/api/core/assets/labels?codes=${encodeURIComponent(savedDiscovery.code)}`, '_blank')}
+                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 py-2.5 text-[13px] font-bold text-white shadow-[0_8px_22px_-8px_rgba(13,148,136,0.7)] active:scale-[0.98]">
+                  <Printer className="h-4 w-4" /> Print QR tag
+                </button>
+              )}
+              {!online && (
+                <p className="mt-2 rounded-lg bg-amber-50 px-2.5 py-2 text-[10.5px] leading-relaxed text-amber-700 ring-1 ring-amber-500/25">
+                  Offline — the ES code and QR tag are issued the moment this discovery syncs.
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="flex w-full flex-col gap-2">
             <button onClick={reset} className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 py-3 text-[14px] font-bold text-white shadow-[0_10px_28px_-8px_rgba(13,148,136,0.7)] active:scale-[0.98]">
               <ScanLine className="h-4 w-4" /> Verify next asset

@@ -182,7 +182,10 @@ export function ESProvider({ children }: { children: React.ReactNode }) {
       body: JSON.stringify({ operations: ops.map(({ label: _label, queuedAt: _q, ...op }) => op) }),
     })
     if (!res.ok) { toast.error('Sync failed — operations kept in queue'); throw new Error('sync failed') }
-    const data = await res.json() as { applied: number; skipped: number }
+    const data = await res.json() as {
+      applied: number; skipped: number
+      items?: { operationId: string; status: string; assetCode?: string; assetId?: string; exceptionCode?: string }[]
+    }
     await refresh()
     return data
   }, [refresh])

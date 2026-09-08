@@ -2,8 +2,10 @@
  * Whitebox — GET /api/core/assets/labels (printable A4 QR label sheet).
  *
  * Covers the contract the Ops "Print QR labels" flow depends on:
- *   RBAC   → ADMIN/OPS allowed, CLIENT + AUDITOR + anonymous rejected
- *   Query  → missing ids = 400, unknown ids = 404, dedupe + cap handling
+ *   RBAC   → ADMIN/OPS/AUDITOR allowed (field teams tag discoveries on the
+ *            spot), CLIENT + anonymous rejected
+ *   Query  → missing ids = 400, unknown ids = 404, dedupe + cap handling,
+ *            ?codes= selector for freshly-discovered assets
  *   Sheet  → valid HTML containing the asset code, the scanner value (barcode
  *            ?? code), an inline QR <svg>, and XSS-safe escaping of asset text
  */
@@ -37,12 +39,26 @@ async function req(ids: string | null, user: AuthUserLike | null) {
   return jsonRequest(url, undefined, 'GET', user)
 }
 
+async function reqCodes(codes: string, user: AuthUserLike | null) {
+  const url = `http://localhost:3000/api/core/assets/labels?codes=${encodeURIComponent(codes)}`
+  return jsonRequest(url, undefined, 'GET', user)
+}
+
 describe('assets/labels API (direct handler)', () => {
-  test('anonymous → 403, CLIENT → 403, AUDITOR → 403 (ops workflow)', async () => {
-    for (const u of [null, clientUser, auditorUser]) {
+  test('anonymous → 403, CLIENT → 403 (register stays team-only)', async () => {
+    for (const u of [null, clientUser]) {
       const res = await labelsGET(await req(fx.assetId, u))
       expect(res.status).toBe(403)
     }
+  })
+
+  test('AUDITOR → 200 (field teams print tags for discoveries)', async () => {
+    const res = await labelsGET(await req(fx.assetId, auditorUser))
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toContain('text/html')
+    const html = await res.text()
+    const asset = await db.asset.findUnique({ where: { id: fx.assetId } })
+    expect(html).toContain(asset!.code)
   })
 
   test('missing ids param → 400 with guidance', async () => {
@@ -50,6 +66,14 @@ describe('assets/labels API (direct handler)', () => {
     expect(res.status).toBe(400)
     const body = await res.json()
     expect(body.error).toContain('ids')
+  })
+
+  test('?codes= selector → 200 sheet for the freshly allocated discovery code', async () => {
+    const res = await labelsGET(await reqCodes(fx.assetCode, opsUser))
+    expect(res.status).toBe(200)
+    const html = await res.text()
+    expect(html).toContain(fx.assetCode)
+    expect(html).toContain('<svg')
   })
 
   test('unknown ids → 404', async () => {
