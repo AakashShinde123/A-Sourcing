@@ -80,6 +80,7 @@ export const CORE_API_MANIFEST: ModuleManifest = {
     { method: 'POST', path: '/api/core/reports', purpose: 'Report generate / finalize — team only' },
     { method: 'POST', path: '/api/core/assets/import', purpose: 'Register intake (idempotent) — team only' },
     { method: 'GET', path: '/api/core/assets/labels', purpose: 'Printable A4 QR label sheet for picked assets — team only' },
+    { method: 'POST/PATCH/DELETE', path: '/api/core/locations', purpose: 'Location tree CRUD with GPS lat/lng — ADMIN/OPS' },
     { method: 'POST', path: '/api/core/auditors', purpose: 'Add field team member — team only' },
     { method: 'PATCH', path: '/api/core/auditors', purpose: 'Team member status / contact — team only' },
     { method: 'DELETE', path: '/api/core/auditors', purpose: 'Remove member — team only, 409 if history' },

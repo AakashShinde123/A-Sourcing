@@ -62,7 +62,10 @@ interface Store {
   submitApproval: (auditId: string, decision: string, byName: string, byRole: string, comment?: string) => Promise<void>
   generateReport: (auditId: string) => Promise<void>
   finalizeReport: (auditId: string) => Promise<void>
-  importAssets: (clientId: string, rows: Record<string, unknown>[]) => Promise<{ imported: number; skipped: number; rejected: number } | null>
+  importAssets: (clientId: string, rows: Record<string, unknown>[]) => Promise<{ imported: number; updated: number; skipped: number; rejected: number; locationsUnlinked: number } | null>
+  createLocation: (data: { clientId: string; name: string; code?: string; parentId?: string | null; level?: string; address?: string | null; gpsLat?: number | null; gpsLng?: number | null }) => Promise<boolean>
+  updateLocation: (data: { id: string; name?: string; code?: string; parentId?: string | null; level?: string; address?: string | null; gpsLat?: number | null; gpsLng?: number | null }) => Promise<boolean>
+  deleteLocation: (id: string) => Promise<boolean>
   createAudit: (data: { clientId: string; name: string; type: string; financialYear?: string; startDate?: string; endDate?: string; locationsLabel?: string }) => Promise<string | null>
   assignAuditor: (auditId: string, auditorId: string, locationId: string | null, scope: string) => Promise<number | null>
   unassignAssignment: (auditId: string, assignmentId: string) => Promise<boolean>
@@ -235,6 +238,32 @@ export function ESProvider({ children }: { children: React.ReactNode }) {
     return data
   }, [refresh])
 
+  // ── Location tree management (Ops → Locations) ───────────────
+  const createLocation = useCallback(async (data: { clientId: string; name: string; code?: string; parentId?: string | null; level?: string; address?: string | null; gpsLat?: number | null; gpsLng?: number | null }) => {
+    const res = await fetch(`${API_BASE}/locations`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+    if (!res.ok) { toast.error('Could not create location', { description: await apiError(res, `Core API responded ${res.status}`) }); return false }
+    const created = await res.json() as { location: { name: string; level: string } }
+    toast.success(`${created.location.name} added`, { description: `${created.location.level} created — link assets to it by importing, or move assets in Asset 360.` })
+    await refresh()
+    return true
+  }, [refresh])
+
+  const updateLocation = useCallback(async (data: { id: string; name?: string; code?: string; parentId?: string | null; level?: string; address?: string | null; gpsLat?: number | null; gpsLng?: number | null }) => {
+    const res = await fetch(`${API_BASE}/locations`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+    if (!res.ok) { toast.error('Could not update location', { description: await apiError(res, `Core API responded ${res.status}`) }); return false }
+    toast.success('Location updated')
+    await refresh()
+    return true
+  }, [refresh])
+
+  const deleteLocation = useCallback(async (id: string) => {
+    const res = await fetch(`${API_BASE}/locations?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
+    if (!res.ok) { toast.error('Could not delete location', { description: await apiError(res, `Core API responded ${res.status}`) }); return false }
+    toast.success('Location deleted')
+    await refresh()
+    return true
+  }, [refresh])
+
   const openAudit = useCallback((id: string) => { setSelectedAuditId(id) }, [])
 
   // ── Audit planning (Ops → Audit Projects) ──────────────────────
@@ -324,10 +353,10 @@ export function ESProvider({ children }: { children: React.ReactNode }) {
     world, loading, surface, setSurface, opsView, setOpsView, clientView, setClientView,
     clientIdentityId, setClientIdentityId,
     asset360, openAsset360: (assetId) => setAsset360({ assetId }), closeAsset360: () => setAsset360(null),
-    selectedAuditId, openAudit, refresh, submitVerifications, patchException, submitApproval, generateReport, finalizeReport, importAssets,
+    selectedAuditId, openAudit, refresh, submitVerifications, patchException, submitApproval, generateReport, finalizeReport, importAssets, createLocation, updateLocation, deleteLocation,
     createAudit, assignAuditor, unassignAssignment, advanceAudit,
     addAuditor, setAuditorStatus, removeAuditor, addClient, setClientStatus, removeClient,
-  }), [user, authLoading, login, logout, world, loading, surface, opsView, clientView, clientIdentityId, asset360, selectedAuditId, refresh, submitVerifications, patchException, submitApproval, generateReport, finalizeReport, importAssets, createAudit, assignAuditor, unassignAssignment, advanceAudit, addAuditor, setAuditorStatus, removeAuditor, addClient, setClientStatus, removeClient])
+  }), [user, authLoading, login, logout, world, loading, surface, opsView, clientView, clientIdentityId, asset360, selectedAuditId, refresh, submitVerifications, patchException, submitApproval, generateReport, finalizeReport, importAssets, createLocation, updateLocation, deleteLocation, createAudit, assignAuditor, unassignAssignment, advanceAudit, addAuditor, setAuditorStatus, removeAuditor, addClient, setClientStatus, removeClient])
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

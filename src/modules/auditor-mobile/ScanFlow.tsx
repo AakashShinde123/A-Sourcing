@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import { v4 as uuid } from 'uuid'
 import {
   ScanLine, Camera, MapPin, MapPinOff, CheckCircle2, XCircle, AlertTriangle, ArrowLeft,
-  Search, PackageSearch, Plus, Loader2, RefreshCw, Clock, CameraOff, QrCode, Printer,
+  Search, PackageSearch, Plus, Loader2, RefreshCw, Clock, CameraOff, QrCode, Printer, Navigation,
 } from 'lucide-react'
 import { useES } from '@/modules/shared/store'
 import type { Asset, Assignment, QueueOp } from '@/modules/shared/types'
@@ -89,6 +89,20 @@ export function ScanFlow({ onExit, online, scope }: { onExit: () => void; online
     () => (world && user?.auditorId ? world.assignments.filter((x) => x.auditorId === user.auditorId) : []),
     [world, user],
   )
+  // GPS cross-check: how far is the auditor from the registered spot right now?
+  const locGps = useMemo(() => {
+    if (!world || !asset?.locationId) return null
+    const l = world.locations.find((x) => x.id === asset.locationId)
+    return l?.gpsLat != null && l?.gpsLng != null ? { lat: l.gpsLat, lng: l.gpsLng } : null
+  }, [world, asset])
+  const gpsDistanceM = useMemo(() => {
+    if (!gps || !locGps) return null
+    const toRad = (d: number) => (d * Math.PI) / 180
+    const dLat = toRad(locGps.lat - gps.lat)
+    const dLng = toRad(locGps.lng - gps.lng)
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(gps.lat)) * Math.cos(toRad(locGps.lat)) * Math.sin(dLng / 2) ** 2
+    return Math.round(6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)))
+  }, [gps, locGps])
 
   /** Resolve a scanned/typed value against the register: barcode → code → client ERP id. */
   const resolveAsset = useCallback(
@@ -472,6 +486,13 @@ export function ScanFlow({ onExit, online, scope }: { onExit: () => void; online
               {gpsLocating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : gps ? <MapPin className="h-3.5 w-3.5" /> : <MapPinOff className="h-3.5 w-3.5" />}
               {gpsLocating ? 'Locating…' : gps ? `${gps.lat.toFixed(5)}, ${gps.lng.toFixed(5)} ±${gps.acc}m` : 'GPS unavailable'}
             </div>
+            {gpsDistanceM != null && (
+              <div className={cn('flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold ring-1',
+                gpsDistanceM < 150 ? 'bg-emerald-50 text-emerald-700 ring-emerald-500/25' : 'bg-amber-50 text-amber-700 ring-amber-500/25')}>
+                <Navigation className="h-3.5 w-3.5" />
+                {gpsDistanceM < 1000 ? `${gpsDistanceM} m` : `${(gpsDistanceM / 1000).toFixed(1)} km`} from registered spot
+              </div>
+            )}
             <input ref={photoInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onPhotoPicked} />
             <button onClick={() => photoInputRef.current?.click()} disabled={photos.length >= 3}
               className="flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1.5 text-[11px] font-semibold text-zinc-700 ring-1 ring-zinc-200 active:scale-95 disabled:opacity-50">

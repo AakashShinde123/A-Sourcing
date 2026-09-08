@@ -94,11 +94,13 @@ any phone, install the Auditor app from, and scan with the camera.
    connected Neon.)
 2. **Make sure login accounts exist** — run `prisma/neon-users.sql` in
    Neon Console → SQL Editor (see §4.5). Skip if you already did this.
-3. **Create the location tree** — run `prisma/neon-locations.sql` in the same
-   SQL Editor. Field scopes attach assets **by location**, so this must exist
-   before you publish scopes; the demo sample Excels match this exact tree.
-   (New: re-importing the register after this now UPDATES existing assets and
-   links their locations — you don't need to wipe anything.)
+3. **Create the location tree — right in the app (no SQL needed)**:
+   Ops Portal → **Locations** → **Add location**. Build top-down (Site →
+   Building → …), stand on the real spot and tap **Use my location** to capture
+   GPS. Then import the register — rows whose “Location” column matches a node
+   name link automatically. Prefer SQL? `prisma/neon-locations.sql` still seeds
+   the 27-node demo tree in one shot. (Re-importing after adding locations
+   UPDATES existing assets and links them — nothing to wipe.)
 4. **Push the code to GitHub** (free):
    ```bash
    git init && git add -A && git commit -m "EasySourcing platform"
@@ -537,7 +539,7 @@ the booted container → build image → tag with module manifest semver → dep
 | `P1003` / `Error: Cannot find module '@prisma/client'` | client not generated in image | ensure `bunx prisma generate` ran (Dockerfile does) |
 | Empty portals after deploy | DB pushed but not seeded | run `bun prisma/seed.ts` (demo only) |
 | "Invalid email or password" on a fresh Postgres/Neon | tables pushed but the `User` table is empty | run `prisma/neon-users.sql` in the Neon SQL Editor (§4.5) |
-| Ops → Locations tab is empty on Neon | location tree never created (`neon-users.sql` only seeds accounts) | run `prisma/neon-locations.sql` in the Neon SQL Editor, then re-import the register (re-import now updates + links locations) |
+| Ops → Locations tab is empty on Neon | location tree never created (`neon-users.sql` only seeds accounts) | Ops → Locations → **Add location** in the app (or run `prisma/neon-locations.sql`), then re-import the register (re-import updates + links locations) |
 | Import says "N rows had a location name that doesn't exist" | Excel `Location` strings don't match any tree node name | create the matching locations, then re-import the same file — assets get patched, codes stay |
 | Manual scan shows "exists — but not in this scope" | asset's location has no published field scope | Ops → Audits → open project → Assign field team → pick the location the card names |
 | "Account temporarily locked" at login | 5 failed tries on that email in 15 min | wait ~15 min, then sign in with the correct password |

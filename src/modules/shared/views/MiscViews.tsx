@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useMemo, useState } from 'react'
-import { Building2, MapPin, ChevronRight, ChevronDown, Factory, Landmark, Warehouse, DoorOpen, Layers, Grid3X3, Boxes, ImageIcon, FileText, History, Plus, Pause, Play, Trash2, Loader2, Users } from 'lucide-react'
+import React, { useEffect, useMemo, useState } from 'react'
+import { Building2, MapPin, ChevronRight, ChevronDown, Factory, Landmark, Warehouse, DoorOpen, Layers, Grid3X3, Boxes, ImageIcon, FileText, History, Plus, Pause, Play, Trash2, Loader2, Users, Pencil, LocateFixed } from 'lucide-react'
 import { useES } from '@/modules/shared/store'
 import { Avatar, Pill, EvidenceThumb, EmptyState, MicroLabel, Bar as ProgressBar } from '@/modules/shared/ui-bits'
 import { fmtDate, fmtDateTime, auditStatusMeta } from '@/modules/shared/format'
@@ -219,10 +219,182 @@ const LEVEL_ICON: Record<string, React.ReactNode> = {
   floor: <Layers className="h-4 w-4" />, zone: <Grid3X3 className="h-4 w-4" />,
   department: <Boxes className="h-4 w-4" />, room: <DoorOpen className="h-4 w-4" />,
 }
+const LEVEL_CHAIN = ['site', 'building', 'floor', 'zone', 'department', 'room'] as const
+type LocLevel = (typeof LEVEL_CHAIN)[number]
+const LEVEL_LABEL: Record<LocLevel, string> = {
+  site: 'Site / Plant', building: 'Building / Block', floor: 'Floor',
+  zone: 'Zone', department: 'Department', room: 'Room / Bay',
+}
+const nextLevelOf = (l: LocLevel): LocLevel => LEVEL_CHAIN[Math.min(LEVEL_CHAIN.indexOf(l) + 1, LEVEL_CHAIN.length - 1)]
+
+/** Create / edit one node of the location tree — with live GPS capture.
+ *  State is initialised from props and the parent remounts it via `key`, so
+ *  opening with a different target always starts from a fresh form. */
+function LocationDialog({ open, onOpenChange, editing, presetParentId, scopeClientId }: {
+  open: boolean
+  onOpenChange: (o: boolean) => void
+  editing: { id: string; clientId: string; parentId: string | null; level: string; name: string; code: string; address: string | null; gpsLat: number | null; gpsLng: number | null } | null
+  presetParentId: string | null
+  scopeClientId?: string
+}) {
+  const { world, createLocation, updateLocation } = useES()
+  const clients = world?.clients ?? []
+  const initialParent = editing?.parentId ?? presetParentId ?? ''
+  const initialParentNode = world?.locations.find((l) => l.id === initialParent)
+  const initialLevel: LocLevel = editing
+    ? (editing.level as LocLevel)
+    : initialParentNode
+      ? nextLevelOf(initialParentNode.level as LocLevel)
+      : 'site'
+  const [clientId, setClientId] = useState(editing?.clientId ?? scopeClientId ?? clients[0]?.id ?? '')
+  const [parentId, setParentId] = useState(initialParent)
+  const [level, setLevel] = useState<LocLevel>(initialLevel)
+  const [name, setName] = useState(editing?.name ?? '')
+  const [code, setCode] = useState(editing?.code ?? '')
+  const [address, setAddress] = useState(editing?.address ?? '')
+  const [gpsLat, setGpsLat] = useState(editing?.gpsLat != null ? String(editing.gpsLat) : '')
+  const [gpsLng, setGpsLng] = useState(editing?.gpsLng != null ? String(editing.gpsLng) : '')
+  const [locating, setLocating] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  const clientLocs = useMemo(() => (world?.locations ?? []).filter((l) => l.clientId === clientId), [world, clientId])
+  const depthOf = useMemo(() => {
+    const m = new Map<string, number>()
+    const walk = (pid: string | null, d: number) => {
+      for (const l of clientLocs.filter((x) => x.parentId === pid)) { m.set(l.id, d); walk(l.id, d + 1) }
+    }
+    walk(null, 0)
+    return m
+  }, [clientLocs])
+
+  /** create mode: picking a parent auto-derives the sensible next level */
+  function pickParent(pid: string) {
+    setParentId(pid)
+    if (editing) return
+    const parent = clientLocs.find((l) => l.id === pid)
+    setLevel(parent ? nextLevelOf(parent.level as LocLevel) : 'site')
+  }
+
+  function captureGps() {
+    if (!navigator.geolocation) { toast.error('This device has no GPS'); return }
+    setLocating(true)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGpsLat(pos.coords.latitude.toFixed(6))
+        setGpsLng(pos.coords.longitude.toFixed(6))
+        setLocating(false)
+        toast.success('GPS captured', { description: `±${Math.round(pos.coords.accuracy)} m accuracy — fine-tune the numbers if needed.` })
+      },
+      () => {
+        setLocating(false)
+        toast.error('Could not read GPS', { description: 'Allow location permission and retry, or type the coordinates manually.' })
+      },
+      { enableHighAccuracy: true, timeout: 10000 },
+    )
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    if (busy || !name.trim()) return
+    setBusy(true)
+    const lat = gpsLat.trim() === '' ? null : Number(gpsLat)
+    const lng = gpsLng.trim() === '' ? null : Number(gpsLng)
+    const ok = editing
+      ? await updateLocation({ id: editing.id, name: name.trim(), code: code.trim() || undefined, parentId: parentId || null, level, address: address.trim() || null, gpsLat: lat, gpsLng: lng })
+      : await createLocation({ clientId, name: name.trim(), code: code.trim() || undefined, parentId: parentId || null, level, address: address.trim() || null, gpsLat: lat, gpsLng: lng })
+    setBusy(false)
+    if (ok) onOpenChange(false)
+  }
+
+  const inputCls = 'h-9 w-full rounded-md border border-zinc-200 bg-white px-3 text-[13px] text-zinc-900 outline-none focus:border-emerald-500'
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{editing ? `Edit ${editing.name}` : 'Add location'}</DialogTitle>
+          <DialogDescription>
+            Build the tree top-down: Site → Building → Floor → Zone → Department → Room. Field scopes attach assets by location.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={submit} className="grid gap-3.5">
+          {!editing && clients.length > 1 && !scopeClientId && (
+            <div className="grid gap-1.5">
+              <Label>Client *</Label>
+              <select value={clientId} onChange={(e) => { setClientId(e.target.value); setParentId('') }} className={inputCls}>
+                {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+          )}
+          {!editing && (
+            <div className="grid gap-1.5">
+              <Label>Inside (parent location)</Label>
+              <select value={parentId} onChange={(e) => pickParent(e.target.value)} className={inputCls}>
+                <option value="">— Top level (a new site) —</option>
+                {clientLocs.map((l) => (
+                  <option key={l.id} value={l.id}>{'\u00A0\u00A0'.repeat(depthOf.get(l.id) ?? 0)}{l.name} · {l.level}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-1.5">
+              <Label>Type</Label>
+              <select value={level} onChange={(e) => setLevel(e.target.value as LocLevel)} className={inputCls} disabled={!!editing}>
+                {LEVEL_CHAIN.map((l) => <option key={l} value={l}>{LEVEL_LABEL[l]}</option>)}
+              </select>
+            </div>
+            <div className="grid gap-1.5">
+              <Label>Short code</Label>
+              <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder={editing ? editing.code : 'auto from name'} />
+            </div>
+          </div>
+          <div className="grid gap-1.5">
+            <Label>Name *</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Production Block A" required />
+          </div>
+          <div className="grid gap-1.5">
+            <Label>Address</Label>
+            <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street, city, PIN" />
+          </div>
+          <div className="rounded-xl border border-zinc-200 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <Label className="flex items-center gap-1.5"><LocateFixed className="h-3.5 w-3.5 text-emerald-600" /> GPS coordinates</Label>
+              <Button type="button" variant="outline" size="sm" onClick={captureGps} disabled={locating}>
+                {locating ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <LocateFixed className="mr-1 h-3.5 w-3.5" />}
+                {locating ? 'Locating…' : 'Use my location'}
+              </Button>
+            </div>
+            <div className="mt-2 grid grid-cols-2 gap-3">
+              <Input inputMode="decimal" value={gpsLat} onChange={(e) => setGpsLat(e.target.value)} placeholder="Latitude · 18.5204" />
+              <Input inputMode="decimal" value={gpsLng} onChange={(e) => setGpsLng(e.target.value)} placeholder="Longitude · 73.8567" />
+            </div>
+            <p className="mt-1.5 text-[11px] leading-relaxed text-zinc-500">
+              Stand at the spot and tap <b>Use my location</b> — the field app then shows how far each auditor is from the registered place while verifying.
+            </p>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button type="submit" disabled={busy || !name.trim()}>
+              {busy && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+              {editing ? 'Save changes' : 'Create location'}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
 
 export function LocationsView({ clientIdScope }: { clientIdScope?: string }) {
-  const { world, setOpsView } = useES()
+  const { world, setOpsView, deleteLocation } = useES()
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [editing, setEditing] = useState<Parameters<typeof LocationDialog>[0]['editing']>(null)
+  const [presetParent, setPresetParent] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState<{ id: string; name: string } | null>(null)
+  const [deletingBusy, setDeletingBusy] = useState(false)
+
   const locs = useMemo(
     () => (clientIdScope ? world!.locations.filter((l) => l.clientId === clientIdScope) : world!.locations),
     [world, clientIdScope],
@@ -232,12 +404,22 @@ export function LocationsView({ clientIdScope }: { clientIdScope?: string }) {
   const assetsAt = (id: string) => world!.assets.filter((a) => a.locationId === id).length
   const toggle = (id: string) => setCollapsed((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
 
+  function openAdd(parentId: string | null = null) { setEditing(null); setPresetParent(parentId); setDialogOpen(true) }
+  function openEdit(l: (typeof locs)[number]) { setEditing(l); setPresetParent(null); setDialogOpen(true) }
+  async function confirmDelete() {
+    if (!deleting) return
+    setDeletingBusy(true)
+    const ok = await deleteLocation(deleting.id)
+    setDeletingBusy(false)
+    if (ok) setDeleting(null)
+  }
+
   const renderNode = (l: (typeof locs)[number], depth: number): React.ReactNode => {
     const kids = childrenOf(l.id)
     const isCollapsed = collapsed.has(l.id)
     return (
       <div key={l.id}>
-        <div className="group flex items-center gap-2 rounded-lg px-2 py-1.5 transition hover:bg-zinc-50" style={{ marginLeft: depth * 20 }}>
+        <div className="group flex items-center gap-2 rounded-lg px-2 py-1.5 transition hover:bg-zinc-50" style={{ marginLeft: depth * 16 }}>
           {kids.length > 0 ? (
             <button onClick={() => toggle(l.id)} className="text-zinc-400 hover:text-zinc-600">{isCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}</button>
           ) : <span className="w-3.5" />}
@@ -245,8 +427,18 @@ export function LocationsView({ clientIdScope }: { clientIdScope?: string }) {
           <button onClick={() => setOpsView('assets')} className="min-w-0 flex-1 text-left">
             <span className="text-[13px] font-medium text-zinc-800 group-hover:text-emerald-700">{l.name}</span>
             <span className="ml-2 font-mono text-[10px] text-zinc-400">{l.code}</span>
+            {l.gpsLat != null && l.gpsLng != null && (
+              <span className="ml-2 inline-flex items-center gap-0.5 rounded-full bg-sky-50 px-1.5 py-px text-[9px] font-semibold text-sky-700 ring-1 ring-sky-200" title={`${l.gpsLat.toFixed(5)}, ${l.gpsLng.toFixed(5)}`}>
+                <LocateFixed className="h-2.5 w-2.5" /> GPS
+              </span>
+            )}
           </button>
           <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium tabular-nums text-zinc-500">{assetsAt(l.id)} assets</span>
+          <span className="flex items-center gap-0.5 opacity-0 transition group-hover:opacity-100 max-sm:opacity-100">
+            <button onClick={() => openAdd(l.id)} title="Add sub-location" className="rounded-md p-1 text-zinc-400 transition hover:bg-emerald-50 hover:text-emerald-600"><Plus className="h-3.5 w-3.5" /></button>
+            <button onClick={() => openEdit(l)} title="Edit / set GPS" className="rounded-md p-1 text-zinc-400 transition hover:bg-sky-50 hover:text-sky-600"><Pencil className="h-3.5 w-3.5" /></button>
+            <button onClick={() => setDeleting({ id: l.id, name: l.name })} title="Delete" className="rounded-md p-1 text-zinc-400 transition hover:bg-red-50 hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></button>
+          </span>
         </div>
         {!isCollapsed && kids.map((k) => renderNode(k, depth + 1))}
       </div>
@@ -255,23 +447,28 @@ export function LocationsView({ clientIdScope }: { clientIdScope?: string }) {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-lg font-semibold tracking-tight text-zinc-900">Location Hierarchy</h1>
-        <p className="text-[13px] text-zinc-500">Client → Site → Building → Floor → Zone → Department → Room → Asset</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-lg font-semibold tracking-tight text-zinc-900">Location Hierarchy</h1>
+          <p className="text-[13px] text-zinc-500">Client → Site → Building → Floor → Zone → Department → Room → Asset</p>
+        </div>
+        <Button onClick={() => openAdd(null)}><Plus className="mr-1.5 h-4 w-4" /> Add location</Button>
       </div>
       {roots.length === 0 && (
         <div className="card border-dashed p-5">
           <div className="flex items-start gap-3">
-            <MapPin className="mt-0.5 h-5 w-5 text-amber-500" />
+            <MapPin className="mt-0.5 h-5 w-5 text-emerald-500" />
             <div className="text-[13px] leading-relaxed text-zinc-600">
-              <div className="font-semibold text-zinc-800">No locations exist yet — field scopes can't be published without them</div>
+              <div className="font-semibold text-zinc-800">No locations yet — build the tree right here (no SQL needed)</div>
               <p className="mt-1">
-                Assets attach to audit scopes <b>by location</b>, so the tree must exist before the register is imported. Two ways to create it:
+                Field scopes attach assets <b>by location</b>, so create at least your sites before importing a register. Use <b>Add location</b> —
+                stand on the actual spot and tap <b>Use my location</b> to capture its GPS coordinates.
               </p>
-              <ol className="mt-2 list-decimal space-y-1 pl-5">
-                <li>Run <code className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[11px]">prisma/neon-locations.sql</code> in your Neon SQL editor (creates the demo Meridian tree)</li>
-                <li>Or add your own sites/buildings/rooms, then <b>re-import the same register file</b> — re-import now updates existing assets and links their locations automatically</li>
-              </ol>
+              <p className="mt-1.5">
+                Already imported assets? Make sure the <b>Name</b> here exactly matches the “Location” column in your Excel, then
+                <b> re-import the same file</b> — existing assets update and link automatically.
+              </p>
+              <Button className="mt-3" size="sm" onClick={() => openAdd(null)}><Plus className="mr-1 h-3.5 w-3.5" /> Add your first site</Button>
             </div>
           </div>
         </div>
@@ -283,16 +480,51 @@ export function LocationsView({ clientIdScope }: { clientIdScope?: string }) {
             <div key={r.id} className="card p-3">
               <div className="mb-2 flex items-center gap-2 border-b border-zinc-100 pb-2">
                 <MapPin className="h-4 w-4 text-emerald-600" />
-                <div>
-                  <div className="text-[13px] font-semibold text-zinc-800">{r.name}</div>
-                  <div className="text-[11px] text-zinc-400">{client?.name}{r.address ? ` · ${r.address}` : ''}</div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="truncate text-[13px] font-semibold text-zinc-800">{r.name}</span>
+                    {r.gpsLat != null && r.gpsLng != null && (
+                      <span className="inline-flex items-center gap-0.5 rounded-full bg-sky-50 px-1.5 py-px text-[9px] font-semibold text-sky-700 ring-1 ring-sky-200"><LocateFixed className="h-2.5 w-2.5" /> GPS</span>
+                    )}
+                  </div>
+                  <div className="truncate text-[11px] text-zinc-400">{client?.name}{r.address ? ` · ${r.address}` : ''}</div>
                 </div>
+                <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium tabular-nums text-zinc-500">{assetsAt(r.id)} assets</span>
+                <span className="flex items-center gap-0.5">
+                  <button onClick={() => openAdd(r.id)} title="Add inside this site" className="rounded-md p-1 text-zinc-400 transition hover:bg-emerald-50 hover:text-emerald-600"><Plus className="h-3.5 w-3.5" /></button>
+                  <button onClick={() => openEdit(r)} title="Edit / set GPS" className="rounded-md p-1 text-zinc-400 transition hover:bg-sky-50 hover:text-sky-600"><Pencil className="h-3.5 w-3.5" /></button>
+                  <button onClick={() => setDeleting({ id: r.id, name: r.name })} title="Delete" className="rounded-md p-1 text-zinc-400 transition hover:bg-red-50 hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></button>
+                </span>
               </div>
               {childrenOf(r.id).map((c) => renderNode(c, 0))}
             </div>
           )
         })}
       </div>
+
+      <LocationDialog
+        key={`${editing?.id ?? 'new'}-${presetParent ?? 'root'}-${dialogOpen}`}
+        open={dialogOpen} onOpenChange={setDialogOpen} editing={editing} presetParentId={presetParent} scopeClientId={clientIdScope}
+      />
+
+      <AlertDialog open={!!deleting} onOpenChange={(o) => { if (!o) setDeleting(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete “{deleting?.name}”?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Locations holding assets or sub-locations cannot be deleted — move them first. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); void confirmDelete() }}
+              className="bg-red-600 text-white hover:bg-red-700">
+              {deletingBusy ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null} Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
