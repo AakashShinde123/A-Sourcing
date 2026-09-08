@@ -79,13 +79,22 @@ export function ImportRegisterDialog({ open, onOpenChange, defaultClientId, lock
     const res = await importAssets(effectiveClientId, validRows as unknown as Record<string, unknown>[])
     setBusy(false)
     if (res) {
-      toast.success(`Imported ${res.imported} asset${res.imported === 1 ? '' : 's'}`, {
-        description: [
-          res.skipped ? `${res.skipped} duplicate${res.skipped === 1 ? '' : 's'} skipped` : null,
-          res.rejected ? `${res.rejected} rejected` : null,
-          `Registered to ${client?.name ?? 'client'} — awaiting tagging & assignment`,
-        ].filter(Boolean).join(' · '),
-      })
+      const summary = [
+        `${res.imported} new`,
+        res.updated ? `${res.updated} updated` : null,
+        res.skipped ? `${res.skipped} duplicate${res.skipped === 1 ? '' : 's'} skipped` : null,
+        res.rejected ? `${res.rejected} rejected` : null,
+      ].filter(Boolean).join(' · ')
+      if (res.locationsUnlinked > 0) {
+        toast.warning(`Register synced (${summary})`, {
+          description: `${res.locationsUnlinked} row${res.locationsUnlinked === 1 ? '' : 's'} had a location name that doesn't exist in the location tree yet — those assets can't be assigned to field scopes. Create the locations (Locations tab, or prisma/neon-locations.sql on Neon), then re-import this same file to link them.`,
+          duration: 12000,
+        })
+      } else {
+        toast.success(`Register synced (${summary})`, {
+          description: `Registered to ${client?.name ?? 'client'} — awaiting tagging & assignment`,
+        })
+      }
       reset()
       onOpenChange(false)
     }

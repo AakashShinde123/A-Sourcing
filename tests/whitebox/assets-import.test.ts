@@ -72,12 +72,60 @@ describe('asset register import', () => {
     expect(after).toBe(before)
   })
 
+  test('re-sync — re-import with a now-existing location UPDATES the row, keeps the ES code', async () => {
+    // REG-003 was imported while 'Nowhere Known' had no matching location.
+    // Re-import the same clientAssetId with a resolvable location → the row is
+    // patched in place (this is exactly the Neon recovery path: run
+    // neon-locations.sql, then re-import the same register file).
+    const before = await db.asset.findUnique({ where: { id: (await db.asset.findFirst({ where: { clientId: fx.clientId, clientAssetId: 'REG-003' } }))!.id } })
+    const site = await db.location.findFirst({ where: { clientId: fx.clientId, code: 'PBA-TST' } })
+
+    const res = await importPOST(await jsonRequest('http://local/api/core/assets/import', {
+      clientId: fx.clientId,
+      rows: [{ clientAssetId: 'REG-003', description: 'Hydraulic Pallet Truck', category: 'Material Handling', locationLabel: 'Production Block A', custodian: 'K. Menon' }],
+    }))
+    expect(res.status).toBe(200)
+    const data = await res.json() as { imported: number; updated: number; skipped: number; locationsUnlinked: number; items: { clientAssetId: string; status: string; code?: string }[] }
+    expect(data.updated).toBe(1)
+    expect(data.imported).toBe(0)
+    expect(data.skipped).toBe(0)
+    expect(data.items[0].status).toBe('updated')
+    expect(data.items[0].code).toBe(before!.code) // ES code survives the re-sync
+
+    const after = await db.asset.findUnique({ where: { id: before!.id } })
+    expect(after!.locationId).toBe(site!.id) // location link applied
+    expect(after!.custodian).toBe('K. Menon')
+
+    // identical row once more → back to idempotent duplicate, not another update
+    const again = await importPOST(await jsonRequest('http://local/api/core/assets/import', {
+      clientId: fx.clientId,
+      rows: [{ clientAssetId: 'REG-003', description: 'Hydraulic Pallet Truck', category: 'Material Handling', locationLabel: 'Production Block A', custodian: 'K. Menon' }],
+    }))
+    const againData = await again.json() as { skipped: number; updated: number }
+    expect(againData.skipped).toBe(1)
+    expect(againData.updated).toBe(0)
+  })
+
+  test('locationsUnlinked counts rows whose location label matches nothing', async () => {
+    const res = await importPOST(await jsonRequest('http://local/api/core/assets/import', {
+      clientId: fx.clientId,
+      rows: [
+        { clientAssetId: 'REG-ULK-1', description: 'Mystery Pump', category: 'Misc', locationLabel: 'Atlantis Basement' },
+        { clientAssetId: 'REG-ULK-2', description: 'Labelled Pump', category: 'Misc', locationLabel: 'Production Block A' },
+      ],
+    }))
+    expect(res.status).toBe(200)
+    const data = await res.json() as { locationsUnlinked: number; imported: number; items: { status: string }[] }
+    expect(data.locationsUnlinked).toBe(1) // only 'Atlantis Basement'
+    expect(data.imported).toBe(2)
+  })
+
   test('mixed batch — valid + duplicate + invalid rows each get their own verdict', async () => {
     const res = await importPOST(await jsonRequest('http://local/api/core/assets/import', {
       clientId: fx.clientId,
       rows: [
         { clientAssetId: 'REG-010', description: 'New lathe', category: 'Production Machinery' },
-        { clientAssetId: 'REG-001', description: 'Duplicate of first upload', category: 'Production Machinery' },
+        { ...REGISTER[0] }, // identical re-post of the first upload → true duplicate
         { description: 'No asset id', category: 'Misc' },
         { clientAssetId: 'REG-011', description: '', category: 'Misc' },
       ],

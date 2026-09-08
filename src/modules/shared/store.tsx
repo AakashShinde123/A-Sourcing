@@ -230,7 +230,7 @@ export function ESProvider({ children }: { children: React.ReactNode }) {
       toast.error('Import failed', { description: err?.error ?? `Core API responded ${res.status}` })
       return null
     }
-    const data = await res.json() as { imported: number; skipped: number; rejected: number }
+    const data = await res.json() as { imported: number; updated: number; skipped: number; rejected: number; locationsUnlinked: number }
     await refresh()
     return data
   }, [refresh])

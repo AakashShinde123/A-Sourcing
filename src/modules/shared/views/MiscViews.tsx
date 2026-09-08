@@ -259,6 +259,23 @@ export function LocationsView({ clientIdScope }: { clientIdScope?: string }) {
         <h1 className="text-lg font-semibold tracking-tight text-zinc-900">Location Hierarchy</h1>
         <p className="text-[13px] text-zinc-500">Client → Site → Building → Floor → Zone → Department → Room → Asset</p>
       </div>
+      {roots.length === 0 && (
+        <div className="card border-dashed p-5">
+          <div className="flex items-start gap-3">
+            <MapPin className="mt-0.5 h-5 w-5 text-amber-500" />
+            <div className="text-[13px] leading-relaxed text-zinc-600">
+              <div className="font-semibold text-zinc-800">No locations exist yet — field scopes can't be published without them</div>
+              <p className="mt-1">
+                Assets attach to audit scopes <b>by location</b>, so the tree must exist before the register is imported. Two ways to create it:
+              </p>
+              <ol className="mt-2 list-decimal space-y-1 pl-5">
+                <li>Run <code className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[11px]">prisma/neon-locations.sql</code> in your Neon SQL editor (creates the demo Meridian tree)</li>
+                <li>Or add your own sites/buildings/rooms, then <b>re-import the same register file</b> — re-import now updates existing assets and links their locations automatically</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="grid gap-3 xl:grid-cols-3">
         {roots.map((r) => {
           const client = world!.clients.find((c) => c.id === r.clientId)
