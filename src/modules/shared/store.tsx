@@ -253,7 +253,7 @@ export function ESProvider({ children }: { children: React.ReactNode }) {
     const data = await res.json() as { attached: number }
     if (data.attached === 0) {
       toast.warning('Scope published — but 0 assets linked', {
-        description: 'Assets attach by exact location match. Make sure the scope’s location matches the “Location” column used during register import, or the asset stays “not in any scope” on the auditor’s device.',
+        description: 'This location has no unassigned assets. Use "Entire register — all locations" in the Assign dialog to link every unassigned asset, or fix the Location names in the register and re-import the same file (re-import updates existing rows).',
       })
     } else {
       toast.success('Field scope published', { description: `${data.attached} asset${data.attached === 1 ? '' : 's'} linked — visible on the auditor's device after their next sync.` })

@@ -169,15 +169,16 @@ export async function PATCH(req: NextRequest) {
       include: { auditor: true, location: true },
     })
 
-    // Auto-link unassigned assets parked at the chosen location.
+    // Auto-link unassigned assets. A location scope links everything parked at
+    // that location; a register-wide scope (no location chosen) links the
+    // client's ENTIRE unassigned register — the escape hatch when imported
+    // location names don't match the tree (assets have no location link yet).
     let attached = 0
-    if (locationId) {
-      const res = await db.asset.updateMany({
-        where: { clientId: audit.clientId, locationId, assignmentId: null },
-        data: { assignmentId: assignment.id },
-      })
-      attached = res.count
-    }
+    const attachWhere = locationId
+      ? { clientId: audit.clientId, locationId, assignmentId: null }
+      : { clientId: audit.clientId, assignmentId: null }
+    const res = await db.asset.updateMany({ where: attachWhere, data: { assignmentId: assignment.id } })
+    attached = res.count
 
     const totalInScope = await recomputeScope(auditId)
 

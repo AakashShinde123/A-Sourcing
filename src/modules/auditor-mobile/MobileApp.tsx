@@ -82,7 +82,7 @@ export function MobileApp() {
   const myExceptions = useMemo(() => (world?.exceptions ?? []).filter((e) => ['exc', 'EX'].some(() => true) && (e.detectedBy === me?.name || myVerifs.some((v) => v.assetId === e.assetId))), [world, me, myVerifs])
 
   return (
-    <div className="relative flex min-h-dvh flex-col items-stretch justify-center overflow-x-clip bg-gradient-to-br from-emerald-50 via-teal-50/60 to-cyan-50 sm:min-h-screen sm:flex-row sm:items-center sm:gap-10 sm:px-4 sm:py-6">
+    <div className="relative flex h-dvh flex-col items-stretch justify-start overflow-x-clip bg-gradient-to-br from-emerald-50 via-teal-50/60 to-cyan-50 sm:h-auto sm:min-h-screen sm:flex-row sm:items-center sm:justify-center sm:gap-10 sm:px-4 sm:py-6">
       {/* daylight mesh behind everything */}
       <div className="pointer-events-none absolute inset-0" aria-hidden>
         <div className="bg-aurora absolute inset-0" />
@@ -121,10 +121,11 @@ export function MobileApp() {
         </div>
       </div>
 
-      {/* Phone — full-bleed app on real phones, decorative frame on tablets/desktop */}
-      <div className="relative flex w-full flex-1 flex-col sm:h-[780px] sm:w-[380px] sm:max-w-full sm:flex-none sm:rounded-[2.6rem] sm:border-[10px] sm:border-zinc-900 sm:shadow-[0_40px_90px_-30px_rgba(6,78,59,0.5)]">
+      {/* Phone — full-bleed app on ALL real devices; decorative frame only on
+          tall desktop viewports (see .phone-frame media query in globals.css) */}
+      <div className="phone-frame relative flex w-full flex-1 flex-col">
         {/* notch (decorative devices only) */}
-        <div className="absolute left-1/2 top-0 z-40 hidden h-6 w-36 -translate-x-1/2 rounded-b-2xl bg-zinc-900 sm:block" />
+        <div className="phone-notch absolute left-1/2 top-0 z-40 h-6 w-36 -translate-x-1/2 rounded-b-2xl bg-zinc-900" />
         {/* status bar — light like the app */}
         <div className="relative z-30 flex items-center justify-between border-b border-zinc-900/[0.05] bg-white px-5 pb-1 pt-[max(0.5rem,env(safe-area-inset-top))] text-[10px] font-semibold text-zinc-700 sm:px-6">
             <span className="tabular-nums">9:41</span>
@@ -161,8 +162,8 @@ export function MobileApp() {
                 <ScanFlow onExit={() => setTab('home')} online={online} scope={assignment} />
               )
             ) : (
-              <div className="flex h-full flex-col bg-[#f4f7f3] text-zinc-900">
-                <div className="flex-1 overflow-y-auto px-4 pb-4 pt-2">
+              <div className="flex h-full flex-col overscroll-contain bg-[#f4f7f3] text-zinc-900">
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-2">
                   {tab === 'home' && me && !assignment && (
                     <div className="mt-2 rounded-2xl bg-white p-5 text-center shadow-sm ring-1 ring-zinc-900/[0.06]">
                       <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 ring-1 ring-amber-200"><ClipboardList className="h-6 w-6 text-amber-600" /></span>
@@ -385,8 +386,8 @@ export function MobileApp() {
             )}
           </div>
       </div>
-      {/* phone caption — only on tablet/desktop below lg (where no explainer shows) */}
-      <div className="relative mt-3 hidden text-center text-[11px] font-medium text-zinc-500 sm:block lg:hidden">EasySourcing Field App · toggle ONLINE/OFFLINE to test offline queue</div>
+      {/* phone caption — only where the decorative frame shows (CSS-gated) */}
+      <div className="phone-caption relative mt-3 text-center text-[11px] font-medium text-zinc-500">EasySourcing Field App · toggle ONLINE/OFFLINE to test offline queue</div>
     </div>
   )
 }

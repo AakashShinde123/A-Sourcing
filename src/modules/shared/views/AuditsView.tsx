@@ -440,10 +440,21 @@ function AssignDialog({ audit, open, onOpenChange }: { audit: Audit; open: boole
   const locations = useMemo(() => (world?.locations ?? []).filter((l) => l.clientId === audit.clientId), [world, audit.clientId])
   const auditor = world?.auditors.find((a) => a.id === auditorId)
   const location = locations.find((l) => l.id === locationId)
+  // What will attach: chosen location's unassigned assets, or the whole
+  // unassigned register when no location filter is chosen.
+  const clientAssets = useMemo(() => (world?.assets ?? []).filter((a) => a.clientId === audit.clientId), [world, audit.clientId])
   const willAttach = useMemo(
-    () => (locationId !== 'none' ? (world?.assets ?? []).filter((a) => a.clientId === audit.clientId && a.locationId === locationId && a.assignmentId === null).length : 0),
-    [world, audit.clientId, locationId],
+    () => (locationId === 'none'
+      ? clientAssets.filter((a) => a.assignmentId === null).length
+      : clientAssets.filter((a) => a.locationId === locationId && a.assignmentId === null).length),
+    [clientAssets, locationId],
   )
+  // Diagnostics for a 0-attach location pick: where did the assets go?
+  const busyElsewhere = useMemo(
+    () => (locationId === 'none' ? 0 : clientAssets.filter((a) => a.locationId === locationId && a.assignmentId !== null).length),
+    [clientAssets, locationId],
+  )
+  const unlinkedRows = useMemo(() => clientAssets.filter((a) => a.locationId === null).length, [clientAssets])
 
   // keep the suggested scope in sync until the user edits it by hand
   useEffect(() => {
@@ -491,13 +502,24 @@ function AssignDialog({ audit, open, onOpenChange }: { audit: Audit; open: boole
             <Select value={locationId} onValueChange={setLocationId}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">No specific location (manual scans only)</SelectItem>
+                <SelectItem value="none">Entire register — all locations</SelectItem>
                 {locations.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
               </SelectContent>
             </Select>
-            {locationId !== 'none' && (
+            {locationId === 'none' ? (
+              <p className="text-xs text-zinc-500">
+                <span className="font-semibold text-emerald-700">{willAttach}</span> unassigned asset{willAttach === 1 ? '' : 's'} — the auditor will see the whole register in this scope.
+              </p>
+            ) : willAttach > 0 ? (
               <p className="text-xs text-zinc-500">
                 <span className="font-semibold text-emerald-700">{willAttach}</span> unassigned asset{willAttach === 1 ? '' : 's'} at this location will be linked to this scope.
+              </p>
+            ) : (
+              <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800 ring-1 ring-amber-200">
+                <b>0 unassigned assets at this location.</b>
+                {busyElsewhere > 0 && <> {busyElsewhere} already sit in other scopes.</>}
+                {unlinkedRows > 0 && <> {unlinkedRows} register row{unlinkedRows === 1 ? '' : 's'} have no location link (their “Location” column didn’t match the tree — re-import the file after fixing the names). </>}
+                Pick <b>Entire register</b> above to link everything unassigned instead.
               </p>
             )}
           </div>
